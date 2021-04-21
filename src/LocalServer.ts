@@ -163,6 +163,7 @@ class LocalServer {
 
 
 				const peer: imapPeer = buildConnect ( kk, ( err, data ) => {
+					app.post ('uuid')
 					if ( err ) {
 						ws.send ( JSON.stringify ({ err: err.message }))
 						
