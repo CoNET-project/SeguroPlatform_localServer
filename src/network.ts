@@ -1,7 +1,8 @@
 import { connect } from 'tls'
 import { each } from 'async'
 
-import { qtGateImapRead, seneMessageToFolder, getMailAttached, imapPeer } from './Imap'
+import { qtGateImapRead, getMailAttached } from './Imap'
+import { seneMessageToFolder, imapPeer } from './imapPeer'
 
 import { inspect } from 'util'
 
@@ -130,11 +131,11 @@ export const buildConnect = ( reponseJson: connect_imap_reqponse, CallBack ) => 
 	const uu = new imapPeer ( imapData, reponseJson.client_folder, reponseJson.server_folder, newMessage, exit )
 
 	uu.on ( 'CoNETConnected', () => {
-		CallBack ( null,  { status: 'Connected to Seguro network.'})
+		CallBack ( null,  { status: 'Connected to Seguro network.', connectUUID: uu.serialID })
 	})
 
 	uu.on ( 'ready', () => {
-		CallBack ( null, { status: 'Connect to email server, waiting Seguro response.'})
+		CallBack ( null, { status: 'Connect to email server, waiting Seguro response.', connectUUID: uu.serialID })
 	})
 
 	return uu
@@ -145,47 +146,6 @@ export const buildConnect = ( reponseJson: connect_imap_reqponse, CallBack ) => 
  * @param encryptedMessage: string, Encrypted with Seguro public key and sign by device key
  * @param CallBack: ( err: Error, response: connectRequest ), response from Seguro | Error 
  */
-export const getInformationFromSeguro = ( requestObj: connectRequest_test, CallBack ) => {
+export const getInformationFromSeguro = ( requestObj: connectRequest, CallBack ) => {
 	return buildConnectGetImap ( requestObj, CallBack )
 }
-
-
-/**
- * 				test unit
- */
-/*
-const data = {
-	client_folder_name: '60e5b626-7693-4f92-9604-b634854dd7c1',
-	device_keyid: '2B52B35DF28409C3',
-	kloak_keyid: '2CA4C636FB7E732C',
-	timestamp: 'f71219b0-9bd5-11eb-a5e8-e9a0185eef49',
-	connect_info: {
-	  imap_account: {
-		imap_server: 'imap-mail.outlook.com',
-		imap_username: 'conet_user2@outlook.com',
-		imap_user_password: 'fkuyalsxtgxtfvtl',
-		imap_port_number: 993
-	  },
-	  server_folder: '42e725ae-dfd9-4a25-b972-9487887b85c9',
-	  client_folder: '1bc09501-cd5f-4949-ac4f-4e1831bc121d'
-	},
-	next_time_connect: {
-	  imap_account: {
-		imap_server: 'imap-mail.outlook.com',
-		imap_username: 'conet_user2@outlook.com',
-		imap_user_password: 'fkuyalsxtgxtfvtl',
-		imap_port_number: 993
-	  },
-	  server_folder_name: 'ed2e5b33-b55c-4eb0-9e02-30387ac1c68c'
-	}
-  }
-  
-
-buildConnect ( data, ( err, data ) => {
-	if ( err ) {
-		return console.log ( err )
-	}
-	console.log ( data )
-})
-
-/** */

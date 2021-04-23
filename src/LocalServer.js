@@ -13,6 +13,7 @@ class LocalServer {
         this.PORT = PORT;
         this.appsPath = path_1.join(__dirname, 'apps');
         this.localserver = null;
+        this.connect_peer_pool = [];
         this.unzipApplication = async (buffer) => {
             return jszip
                 .loadAsync(buffer)
@@ -105,7 +106,7 @@ class LocalServer {
                 });
             });
             /**
-             *
+             * 			Get IMAP account
              */
             app.post('/getInformationFromSeguro', (req, res) => {
                 const requestObj = req.body;
@@ -115,6 +116,25 @@ class LocalServer {
                         return res.end();
                     }
                     return res.json(data);
+                });
+            });
+            /**
+             *
+             */
+            app.post('/postMessage', (req, res) => {
+                const post_data = req.body;
+                const index = this.connect_peer_pool.findIndex(n => n.serialID === post_data.connectUUID);
+                if (index < 0) {
+                    res.sendStatus(404);
+                    return res.end();
+                }
+                const ws = this.connect_peer_pool[index];
+                return ws.AppendWImap1(post_data.encryptedMessage, '', err => {
+                    if (err) {
+                        res.sendStatus(500);
+                        return res.end();
+                    }
+                    res.end();
                 });
             });
             wsServerConnect.on('connection', ws => {

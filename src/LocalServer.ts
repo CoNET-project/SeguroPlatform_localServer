@@ -7,13 +7,15 @@ import * as jszip from 'jszip'
 import * as fse from 'fs-extra'
 import { imapAccountTest } from './Imap'
 import { inspect } from 'util'
-import type { imapPeer } from './Imap'
+import type { imapPeer } from './imapPeer'
 import { testImapServer, getInformationFromSeguro, buildConnect } from './network'
 const upload = require ( 'multer' )()
 
 class LocalServer {
     private appsPath = join ( __dirname, 'apps' )
 	private localserver: Server = null
+
+	private connect_peer_pool: imapPeer [] = []
     constructor ( private PORT = 3000 ) {
         this.initialize()
     }
@@ -133,10 +135,10 @@ class LocalServer {
 		})
 
 		/**
-		 * 
+		 * 			Get IMAP account
 		 */
 		app.post ( '/getInformationFromSeguro', ( req, res ) => {
-			const requestObj: connectRequest_test = req.body
+			const requestObj: connectRequest = req.body
 			return getInformationFromSeguro ( requestObj, ( err, data )=> {
 				if ( err ) {
 					res.sendStatus ( 400 )
@@ -144,9 +146,29 @@ class LocalServer {
 				}
 				return res.json ( data )
 			})
-			
-
+		
 		})
+
+		/**
+		 * 		
+		 */
+		app.post ('/postMessage', ( req, res ) => {
+			const post_data: postData = req.body
+			const index = this.connect_peer_pool.findIndex ( n => n.serialID === post_data.connectUUID )
+			if ( index < 0 ) {
+				res.sendStatus ( 404 )
+				return res.end ()
+			}
+			const ws = this.connect_peer_pool [ index ]
+			return ws.AppendWImap1 ( post_data.encryptedMessage, '', err => {
+				if ( err ) {
+					res.sendStatus ( 500 )
+					return res.end ()
+				}
+				res.end ()
+			})
+		})
+		
 
 		wsServerConnect.on ( 'connection', ws => {
 
@@ -163,18 +185,19 @@ class LocalServer {
 
 
 				const peer: imapPeer = buildConnect ( kk, ( err, data ) => {
-					app.post ('uuid')
+					
 					if ( err ) {
 						ws.send ( JSON.stringify ({ err: err.message }))
 						
 						return ws.close ()
 					}
+
 					return ws.send ( JSON.stringify ( data ))
 				})
 
 				ws.on ( 'close', () => {
 					return peer.closePeer (() => {
-						console.log ( `WS on close`)
+						console.log ( `WS on close` )
 					})
 					
 				})

@@ -4,6 +4,7 @@ exports.getInformationFromSeguro = exports.buildConnect = exports.testImapServer
 const tls_1 = require("tls");
 const async_1 = require("async");
 const Imap_1 = require("./Imap");
+const imapPeer_1 = require("./imapPeer");
 const connerver = (imapServer, CallBack) => {
     let err = null;
     let time;
@@ -72,7 +73,7 @@ const buildConnectGetImap = (requestObj, CallBack) => {
         });
     };
     const sendMessage = () => {
-        return Imap_1.seneMessageToFolder(imapData, requestObj.server_folder, Buffer.from(requestObj.encrypted_request).toString('base64'), '', false, err => {
+        return imapPeer_1.seneMessageToFolder(imapData, requestObj.server_folder, Buffer.from(requestObj.encrypted_request).toString('base64'), '', false, err => {
             if (err) {
                 console.log(err);
                 if (++appendCount > 3) {
@@ -106,12 +107,12 @@ const buildConnect = (reponseJson, CallBack) => {
     const exit = err => {
         CallBack(null, { status: 'End.' });
     };
-    const uu = new Imap_1.imapPeer(imapData, reponseJson.client_folder, reponseJson.server_folder, newMessage, exit);
+    const uu = new imapPeer_1.imapPeer(imapData, reponseJson.client_folder, reponseJson.server_folder, newMessage, exit);
     uu.on('CoNETConnected', () => {
-        CallBack(null, { status: 'Connected to Seguro network.' });
+        CallBack(null, { status: 'Connected to Seguro network.', connectUUID: uu.serialID });
     });
     uu.on('ready', () => {
-        CallBack(null, { status: 'Connect to email server, waiting Seguro response.' });
+        CallBack(null, { status: 'Connect to email server, waiting Seguro response.', connectUUID: uu.serialID });
     });
     return uu;
 };
@@ -126,42 +127,3 @@ const getInformationFromSeguro = (requestObj, CallBack) => {
     return buildConnectGetImap(requestObj, CallBack);
 };
 exports.getInformationFromSeguro = getInformationFromSeguro;
-/**
- * 				test unit
- */
-/*
-const data = {
-    client_folder_name: '60e5b626-7693-4f92-9604-b634854dd7c1',
-    device_keyid: '2B52B35DF28409C3',
-    kloak_keyid: '2CA4C636FB7E732C',
-    timestamp: 'f71219b0-9bd5-11eb-a5e8-e9a0185eef49',
-    connect_info: {
-      imap_account: {
-        imap_server: 'imap-mail.outlook.com',
-        imap_username: 'conet_user2@outlook.com',
-        imap_user_password: 'fkuyalsxtgxtfvtl',
-        imap_port_number: 993
-      },
-      server_folder: '42e725ae-dfd9-4a25-b972-9487887b85c9',
-      client_folder: '1bc09501-cd5f-4949-ac4f-4e1831bc121d'
-    },
-    next_time_connect: {
-      imap_account: {
-        imap_server: 'imap-mail.outlook.com',
-        imap_username: 'conet_user2@outlook.com',
-        imap_user_password: 'fkuyalsxtgxtfvtl',
-        imap_port_number: 993
-      },
-      server_folder_name: 'ed2e5b33-b55c-4eb0-9e02-30387ac1c68c'
-    }
-  }
-  
-
-buildConnect ( data, ( err, data ) => {
-    if ( err ) {
-        return console.log ( err )
-    }
-    console.log ( data )
-})
-
-/** */ 

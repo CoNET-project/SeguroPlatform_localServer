@@ -40,6 +40,11 @@ interface connectRequest {
 	connect_info?: connect_imap_reqponse
 }
 
+interface postData {
+	connectUUID: string
+	encryptedMessage: string
+}
+
 
 /**
  * 		for test 
@@ -48,4 +53,6 @@ interface connectRequest_test extends connectRequest {
 	kloak_private?: string
 	device_private?: string
 	reponseJson?: connectRequest
-} 
+}
+
+

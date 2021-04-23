@@ -76,10 +76,10 @@ iUatG/EQn9VLAanhlsOMmZApsHnIxwc=
 `
 const seguroKeyID = 'BC934C7133E2B088'
 
-const generateKey = ( passwd: string = '', CallBack ) => {
+const generateKey = ( passwd: string, name: string, email: string, CallBack ) => {
 	const userId = {
-		name: '',
-		email: ''
+		name: name,
+		email: email
 	}
 	const option: Openpgp.KeyOptions = {
 		passphrase: passwd,
@@ -221,10 +221,10 @@ const decryptMessageCheckSeguroKey = async ( encryptedMessage: string, data: con
 export const buildTestAccount = ( CallBack ) => {
 	let deviceKey: Openpgp.KeyPair = null
 	return waterfall ([
-		next => generateKey ( '', next ),
+		next => generateKey ( '','','', next ),
 		( data, next ) => {
 			deviceKey = data
-			return generateKey ( '', next )
+			return generateKey ( '','','', next )
 		}
 	], ( err, data: Openpgp.KeyPair ) => {
 		if ( err ) {
@@ -282,6 +282,7 @@ let requestData: connectRequest_test = null
 let hash1 = ''
 waterfall ([
 	next => buildTestAccount ( next ),
+	
 	( data, next ) => {
 		requestData = data
 		return encrypBySeguroMessage ( requestData, next )
@@ -297,7 +298,8 @@ waterfall ([
 		hash1 = createHash ('sha256').update ( data.encrypted_response ).digest ('hex')
 		
 		return decryptMessageCheckSeguroKey ( requestData.encrypted_response = data.encrypted_response, requestData, next )
-	},
+	}
+	/*
 	( data, next ) => {
 		let respon: connectRequest_test = null
 		try {
@@ -305,9 +307,12 @@ waterfall ([
 		} catch ( ex ) {
 			return next ( ex )
 		}
+		console.log ( inspect ( requestData, false, 3, true ))
 		console.time (`start connect to Seguro [${ hash1 }]`)
+
 		let callbak = false
 		const ws = wsConnect ( 'ws://localhost:3000/connectToSeguro', respon.connect_info, ( err, data ) => {
+			console.timeEnd (`start connect to Seguro [${ hash1 }]`)
 			if ( err ) {
 				console.log ( inspect (`wsConnect callback err ${ err.message }`, false, 1, true ))
 				if ( !callbak ) {
@@ -315,6 +320,7 @@ waterfall ([
 				}
 				return
 			}
+			
 			if ( /Connected/.test ( data.status )) {
 				callbak = true
 				console.timeEnd (`start connect to Seguro [${ hash1 }]`)
@@ -324,9 +330,12 @@ waterfall ([
 					return next ()
 				}, 2000 )
 			}
+			
+			console.log ( inspect ( data, false, 3, true ))
 		})
 
 	},
+	
 	next => {
 		requestData.imap_account = requestData.reponseJson.next_time_connect.imap_account
 		requestData.server_folder = requestData.reponseJson.next_time_connect.server_folder
@@ -367,12 +376,14 @@ waterfall ([
 
 		})
 
-	},
+	}
+	/** */
 	
 ], ( err, message ) => {
 	if ( err ) {
 		return console.log ( err )
 	}
+	console.log ( inspect ( message, false, 3, true ))
 })
 /** */
 
