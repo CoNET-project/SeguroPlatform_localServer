@@ -1,7 +1,7 @@
 import * as express from 'express'
 import type { Server } from 'http'
 import { Server as WsServer } from 'ws'
-
+import { readKey, readMessage, Message, enums, encrypt } from 'openpgp'
 import { normalize, join } from 'path'
 import * as jszip from 'jszip'
 import * as fse from 'fs-extra'
@@ -11,11 +11,17 @@ import type { imapPeer } from './imapPeer'
 import { testImapServer, getInformationFromSeguro, buildConnect } from './network'
 const upload = require ( 'multer' )()
 
+const getEncryptedMessagePublicKeyID = async ( encryptedMessage: string, CallBack ) => {
+	const encryptObj = await readMessage({ armoredMessage: encryptedMessage })
+	return CallBack ( null, encryptObj.getEncryptionKeyIds().map ( n => n.toHex().toUpperCase()))
+}
+
+
 class LocalServer {
     private appsPath = join ( __dirname, 'apps' )
 	private localserver: Server = null
 
-	private connect_peer_pool: imapPeer [] = []
+	private connect_peer_pool: any [] = []
     constructor ( private PORT = 3000 ) {
         this.initialize()
     }
@@ -52,6 +58,17 @@ class LocalServer {
 
 	public end () {
 		this.localserver.close ()
+	}
+
+	public postMessageToLocalDevice ( device: string, encryptedMessage: string ) {
+		const index = this.connect_peer_pool.findIndex ( n => n.publicKeyID === device )
+		if ( index < 0 ) {
+			return console.log ( inspect ({ postMessageToLocalDeviceError: `this.connect_peer_pool have no publicKeyID [${ device }]`}, false, 3, true ))
+		}
+		const ws = this.connect_peer_pool[ index ]
+		const sendData = { encryptedMessage: encryptedMessage }
+		console.log ( inspect ({ ws_send: sendData}, false, 3, true ))
+		return ws.send ( JSON.stringify ( sendData ))
 	}
 
     private initialize = async () => {
@@ -152,58 +169,144 @@ class LocalServer {
 		/**
 		 * 		
 		 */
-		app.post ('/postMessage', ( req, res ) => {
+		app.post ( '/postMessage', ( req, res ) => {
 			const post_data: postData = req.body
-			const index = this.connect_peer_pool.findIndex ( n => n.serialID === post_data.connectUUID )
-			if ( index < 0 ) {
-				res.sendStatus ( 404 )
-				return res.end ()
-			}
-			const ws = this.connect_peer_pool [ index ]
-			return ws.AppendWImap1 ( post_data.encryptedMessage, '', err => {
-				if ( err ) {
-					res.sendStatus ( 500 )
+			
+			if ( post_data.connectUUID ) {
+				const index = this.connect_peer_pool.findIndex ( n => n.serialID === post_data.connectUUID )
+				if ( index < 0 ) {
+					res.sendStatus ( 404 )
 					return res.end ()
 				}
-				res.end ()
-			})
+				const ws = this.connect_peer_pool [ index ]
+				
+				console.log ( inspect( { 'localhost:3000/postMessage post to Seguro network!' : post_data.encryptedMessage }, false, 2, true ))
+				return ws.AppendWImap1 ( post_data.encryptedMessage, '', err => {
+					if ( err ) {
+						res.sendStatus ( 500 )
+						return res.end ()
+					}
+					res.end ()
+				})
+				
+			}
+			
+			
+			if ( post_data.encryptedMessage ) {
+
+				return getEncryptedMessagePublicKeyID ( post_data.encryptedMessage, ( err, keys: string[] ) => {
+					console.log ( inspect ( { getEncryptedMessagePublicKeyID: keys }, false, 3, true ))
+					if ( !keys || !keys.length ) {
+						res.sendStatus ( 500 )
+						return res.end ()
+					}
+					keys.forEach ( n => {
+						this.postMessageToLocalDevice ( n, post_data.encryptedMessage )
+					})
+					res.end ()
+				})
+				
+			}
+
+			/**
+			 * 			unknow type of ws
+			 */
+
+			console.log ( inspect ( post_data, false, 3, true ))
+			console.log (`unknow type of ${ post_data }`)
+			res.sendStatus ( 404 )
+			return res.end ()
 		})
 		
 
 		wsServerConnect.on ( 'connection', ws => {
 
-			return ws.on ( 'message', message => {
+			ws.on ( 'message', message => {
 
 				let kk: connect_imap_reqponse = null
 				
 				try {
 					kk = JSON.parse ( message )
 				} catch ( ex ) {
-					ws.send ( 'Data error!' )
+					ws.send ( JSON.stringify ({ status: `Data format error! [${ message }]` }) )
 					return ws.close ()
 				}
 
-
-				const peer: imapPeer = buildConnect ( kk, ( err, data ) => {
+				let peer: imapPeer = buildConnect ( kk, ( err, data ) => {
 					
 					if ( err ) {
-						ws.send ( JSON.stringify ({ err: err.message }))
-						
+						ws.send ( JSON.stringify ({ status: err.message }))
 						return ws.close ()
 					}
 
 					return ws.send ( JSON.stringify ( data ))
 				})
 
-				ws.on ( 'close', () => {
+				const serialID = peer.serialID
+
+				this.connect_peer_pool.push ( peer )
+
+				ws.once ( 'close', () => {
 					return peer.closePeer (() => {
-						console.log ( `WS on close` )
+						const index = this.connect_peer_pool.findIndex ( n => n.serialID === serialID )
+						if ( index > -1 ) {
+							this.connect_peer_pool.splice ( index, 1 )
+						}
+						
+						peer = null
+						console.log ( `WS [${ serialID }] on close` )
 					})
 					
 				})
 			})
 
 		})
+
+		wsServerConnect.on ( 'peerToPeerConnecting', ws => {
+			console.log (`wsServerConnect on peerToPeerConnecting`)
+			return ws.on ( 'message', async message => {
+
+				let kk: connectRequest = null
+				
+				try {
+					kk = JSON.parse ( message )
+				} catch ( ex ) {
+					ws.send ( JSON.stringify ({ status: `Data format error! [${ message }]` }) )
+					return ws.close ()
+				}
+				
+				const key = await readKey ({ armoredKey: kk.device_armor })
+				const device = key.getKeyIds()[1].toHex ().toUpperCase ()
+				if ( !device ) {
+					const sendData = { status: `Error: device_armor have not subkey!`, key_ids: `${ key.getKeyIds().map ( n => n.toHex().toUpperCase()) }` }
+					ws.send ( JSON.stringify ( sendData ) )
+					console.log ( inspect ( sendData, false, 3, true  ))
+					return ws.close ()
+				}
+
+				
+				
+				ws.publicKeyID = device
+				this.connect_peer_pool.push ( ws )
+				const sendData  = { key_ids: `${ key.getKeyIds().map ( n => n.toHex().toUpperCase()) }`}
+				ws.send ( JSON.stringify (  sendData ))
+				console.log ( inspect ( sendData, false , 3, true ))
+
+				ws.once ( 'close', () => {
+
+					const index = this.connect_peer_pool.findIndex ( n => n.publicKeyID === device )
+					if ( index > -1 ) {
+						this.connect_peer_pool.splice ( index, 1 )
+					}
+					console.log ( `WS [${ device }] on close` )
+				})
+			})
+
+		})
+
+
+
+
 
         this.localserver = app.listen ( this.PORT, () => {
             return console.table([
@@ -213,9 +316,13 @@ class LocalServer {
 
 		this.localserver.on ( 'upgrade', ( request, socket, head ) => {
 			if ( /\/connectToSeguro/.test ( request.url )) {
-				console.log ( )
 				return wsServerConnect.handleUpgrade ( request, socket, head, ws => {
 					return wsServerConnect.emit ( 'connection', ws, request )
+				})
+			}
+			if ( /\/peerToPeerConnecting/.test ( request.url )) {
+				return wsServerConnect.handleUpgrade ( request, socket, head, ws => {
+					return wsServerConnect.emit ( 'peerToPeerConnecting', ws, request )
 				})
 			}
 			console.log (`unallowed ${ request.url } `)

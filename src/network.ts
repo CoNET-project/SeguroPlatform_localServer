@@ -121,7 +121,7 @@ export const buildConnect = ( reponseJson: connect_imap_reqponse, CallBack ) => 
 	}
 	const newMessage = message => {
 		console.log (`buildConnect newMessage`, newMessage.toString ())
-		CallBack ( null, { message: message } )
+		CallBack ( null, { encryptedMessage: message })
 	}
 
 	const exit = err => {

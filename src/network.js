@@ -102,7 +102,7 @@ const buildConnect = (reponseJson, CallBack) => {
     };
     const newMessage = message => {
         console.log(`buildConnect newMessage`, newMessage.toString());
-        CallBack(null, { message: message });
+        CallBack(null, { encryptedMessage: message });
     };
     const exit = err => {
         CallBack(null, { status: 'End.' });
