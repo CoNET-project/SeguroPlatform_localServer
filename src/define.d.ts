@@ -1,3 +1,4 @@
+
 interface imapConnect {
 	imapServer: string
 	imapUserName: string
@@ -41,8 +42,9 @@ interface connectRequest {
 }
 
 interface postData {
-	connectUUID: string
-	encryptedMessage: string
+	connectUUID?: string
+	encryptedMessage?: string
+	status?: string
 }
 
 
@@ -53,6 +55,8 @@ interface connectRequest_test extends connectRequest {
 	kloak_private?: string
 	device_private?: string
 	reponseJson?: connectRequest
+	ws_handle?: postData
+	ws_Obj?: any
 }
 
 

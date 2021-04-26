@@ -101,35 +101,24 @@ class imapPeer extends events_1.EventEmitter {
             clearTimeout(this.waitingReplyTimeOut);
             return this.emit('CoNETConnected', attr);
         }
-        console.log(` subject = [${Buffer.from(subject).toString('base64')}] this.pingUuid = [${this.pingUuid}] base64 = [${Buffer.from(this.pingUuid).toString('base64')}]`);
-        if (subject) {
-            /**
-             *
-             *
-             *
-             */
-            if (attr.length < 40) {
-                console.log(`new attr\n${attr}\n`);
-                const _attr = attr.split(/\r?\n/)[0];
-                if (!this.connected && !this.pinging) {
-                    this.Ping(false);
-                }
-                if (subject === _attr) {
-                    console.log(`\n\nthis.replyPing [${_attr}]\n\n this.ping.uuid = [${this.pingUuid}]`);
-                    return this.replyPing(subject);
-                }
-                console.log(`this.pingUuid = [${this.pingUuid}] subject [${subject}]`);
-                return console.log(`new attr\n${_attr}\n _attr [${Buffer.from(_attr).toString('hex')}] subject [${Buffer.from(subject).toString('hex')}]]!== attr 【${JSON.stringify(_attr)}】`);
+        if (attr.length < 40) {
+            const _attr = attr.split(/\r?\n/)[0];
+            if (!this.connected && !this.pinging) {
+                this.Ping(false);
             }
-            /**
-             * 			ignore old mail
-             */
-            if (!this.connected) {
-                return;
+            if (subject === _attr) {
+                console.log(`\n\nthis.replyPing [${_attr}]\n\n this.ping.uuid = [${this.pingUuid}]`);
+                return this.replyPing(subject);
             }
-            return this.newMail(attr, subject);
+            return console.log(`new attr\n${_attr}\n _attr [${Buffer.from(_attr).toString('hex')}] subject [${Buffer.from(subject).toString('hex')}]]!== attr 【${JSON.stringify(_attr)}】`);
         }
-        console.log(`get mail have not subject\n\n`, email.toString());
+        /**
+         * 			ignore old mail
+         */
+        if (!this.connected) {
+            return;
+        }
+        return this.newMail(attr, subject);
     }
     replyPing(uuid) {
         console.log(`\n\nreplyPing = [${uuid}]\n\n`);
@@ -140,7 +129,8 @@ class imapPeer extends events_1.EventEmitter {
         });
     }
     AppendWImap1(mail, uuid, CallBack) {
-        return exports.seneMessageToFolder(this.imapData, this.writeBox, mail, uuid, true, CallBack);
+        const sendData = mail ? Buffer.from(mail).toString('base64') : '';
+        return exports.seneMessageToFolder(this.imapData, this.writeBox, sendData, uuid, true, CallBack);
     }
     setTimeOutOfPing(sendMail) {
         console.trace(`setTimeOutOfPing [${this.pingUuid}]`);

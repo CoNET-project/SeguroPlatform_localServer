@@ -120,7 +120,6 @@ export const buildConnect = ( reponseJson: connect_imap_reqponse, CallBack ) => 
 		imapUserPassword: reponseJson.imap_account.imap_user_password
 	}
 	const newMessage = message => {
-		console.log (`buildConnect newMessage`, newMessage.toString ())
 		CallBack ( null, { encryptedMessage: message })
 	}
 

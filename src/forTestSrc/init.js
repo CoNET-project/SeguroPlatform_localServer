@@ -98,7 +98,6 @@ const encryptMessage = async (clearText, publicKeyArmored, privateKeyArmored, Ca
         compression: openpgp_1.enums.compression.zip
     };
     return openpgp_1.encrypt(option).then(n => {
-        console.log(util_1.inspect(n, false, 3, true));
         return CallBack(null, n);
     });
 };
@@ -153,6 +152,9 @@ const requestPost = (postData, urlPath, CallBack) => {
         });
         res.once('end', () => {
             let ret = null;
+            if (!_data) {
+                return CallBack();
+            }
             try {
                 ret = JSON.parse(_data);
             }
@@ -268,11 +270,13 @@ const wsConnect = (url, sendData, CallBack) => {
 };
 /**
  *
- * 			test unit
+ * 			test unit for try connect to Seguro network
  */
-let requestData = null;
-let hash1 = '';
 /*
+let requestData: connectRequest_test = null
+let hash1 = ''
+
+
 waterfall ([
     next => buildTestAccount ( next ),							//			Init device and Seguro key, puckup a Seguro public listening channel IMAP
     
@@ -382,51 +386,164 @@ waterfall ([
 /** */
 /**
  *
- * 			test unit
+ * 			test unit for local develop test, two devices doing communication, device2 send message to device1
+ */
+/*
+
+
+let requestData1: connectRequest_test = null
+let requestData: connectRequest_test = null
+let ws1 = null
+let ws2 = null
+waterfall ([
+    next => buildTestAccount ( next ),							//			Init device1 and Seguro key, puckup a Seguro public
+    ( data, next ) => {
+        requestData = data
+        return buildTestAccount ( next )						//			Init device2 and Seguro key, puckup a Seguro public
+    },
+    ( data, next ) => {
+        requestData1 = data
+        ws1 = wsConnect ( 'ws://localhost:3000/peerToPeerConnecting', requestData, ( err, response1 ) => {
+            if ( err ) {
+                return next ( err )
+            }
+            console.log ( inspect ( { device1ConnectToWs: response1 }, false, 3, true ))
+            if ( response1.key_ids ) {
+                
+                return ws2 = wsConnect ( 'ws://localhost:3000/peerToPeerConnecting', requestData1, ( err, data1 ) => {
+                    if ( err ) {
+                        return next ( err )
+                    }
+                    
+                    console.log ( inspect ( { device2ConnectToWs: data1 }, false, 3, true ))
+                    
+                    return encryptMessage ( 'hello device1',
+                        requestData.device_armor, 			//			device1 public key
+                        requestData1.device_private, 		//			device2 private key sign
+                        next )
+                })
+            }
+            
+            return decryptMessage ( response1.encryptedMessage, requestData.device_private, requestData1.device_armor, ( err, data2 ) => {
+                console.log ( inspect ( { decryptMessageCallBack: 'SUCCESS!'}, false, 3, true ))
+                let response = null
+                
+                console.log ( inspect ({ getMessageFromDevice2 : data2.data }, false, 3, true ))
+                ws1.close ()
+                ws2.close ()
+            })
+        })
+    },
+    ( data, next ) => requestPost ( { encryptedMessage: data }, '/postMessage', next )
+    ], ( data, err ) => {
+    if ( err ) {
+        return console.log ( err )
+    }
+    console.log (`requestPost success!`)
+})
+/** */
+/**
+ *
+ * 			test unit for try connect to Seguro network
+ * 			device2 send message to device1
  */
 let requestData1 = null;
-let ws1 = null;
-let ws2 = null;
+let requestData2 = null;
+const endAll = () => {
+    requestData1.ws_Obj.close();
+    requestData2.ws_Obj.close();
+};
 async_1.waterfall([
     next => exports.buildTestAccount(next),
     (data, next) => {
-        requestData = data;
-        return exports.buildTestAccount(next); //			Init device2 and Seguro key, puckup a Seguro public
+        requestData1 = data;
+        return encrypBySeguroMessage(requestData1, next); //			create IMAP request 
     },
     (data, next) => {
-        requestData1 = data;
-        ws1 = wsConnect('ws://localhost:3000/peerToPeerConnecting', requestData, (err, response1) => {
+        requestData1.encrypted_request = data;
+        console.time(`device1 requestPost`);
+        return requestPost(requestData1, '/getInformationFromSeguro', next); //	post request
+    },
+    (data, next) => {
+        console.timeEnd(`device1 requestPost`);
+        return decryptMessageCheckSeguroKey(requestData1.encrypted_response = data.encrypted_response, requestData1, next); //	decrypt response
+    },
+    (data, next) => {
+        let respon = null;
+        try {
+            respon = requestData1.reponseJson = JSON.parse(data);
+        }
+        catch (ex) {
+            return next(ex);
+        }
+        console.time(`Device1 start connect to Seguro`);
+        //	try connect Seguro use responsed connect_info
+        requestData1.ws_Obj = wsConnect('ws://localhost:3000/connectToSeguro', respon.connect_info, (err, data) => {
             if (err) {
+                console.log(util_1.inspect({ ws_device1_Error: err }, false, 2, true));
                 return next(err);
             }
-            console.log(util_1.inspect({ device1ConnectToWs: response1 }, false, 3, true));
-            if (response1.key_ids) {
-                return ws2 = wsConnect('ws://localhost:3000/peerToPeerConnecting', requestData1, (err, data1) => {
+            if (/Connected/.test(data.status)) {
+                console.timeEnd(`Device1 start connect to Seguro`);
+                requestData1.ws_handle = data;
+                return exports.buildTestAccount(next); //		init device2
+            }
+            if (data.encryptedMessage) { //		get message from device2
+                return decryptMessage(data.encryptedMessage, requestData1.device_private, requestData2.device_armor, (err, data) => {
                     if (err) {
-                        return next(err);
+                        return console.log(util_1.inspect({ ws_device1_decryptMessage_Error: err }, false, 2, true));
                     }
-                    console.log(util_1.inspect({ device2ConnectToWs: data1 }, false, 3, true));
-                    /**
-                     * 				send message to device1
-                     */
-                    return encryptMessage('hello device1', requestData.device_armor, //			device1 public key
-                    requestData1.device_private, //			device2 private key sign
-                    next);
+                    console.timeEnd(`Send message to Device1 finished`);
+                    console.log(util_1.inspect({ requestData1_wsConnect_getMessage: data.data }, false, 3, true));
+                    endAll();
                 });
             }
-            return decryptMessage(response1.encryptedMessage, requestData.device_private, requestData1.device_armor, (err, data2) => {
-                console.log(util_1.inspect({ decryptMessageCallBack: 'SUCCESS!' }, false, 3, true));
-                let response = null;
-                console.log(util_1.inspect({ getMessageFromDevice2: data2.data }, false, 3, true));
-                ws1.close();
-                ws2.close();
-            });
+            return console.log(util_1.inspect({ requestData1_wsConnect_getMessage: data }, false, 3, true));
         });
     },
-    (data, next) => requestPost({ encryptedMessage: data }, '/postMessage', next)
-], (data, err) => {
+    (data, next) => {
+        requestData2 = data;
+        return encrypBySeguroMessage(requestData2, next); //			create IMAP request 
+    },
+    (data, next) => {
+        requestData2.encrypted_request = data;
+        console.time(`Device2 requestPost`);
+        return requestPost(requestData2, '/getInformationFromSeguro', next); //	post request
+    },
+    (data, next) => {
+        console.timeEnd(`Device2 requestPost`);
+        return decryptMessageCheckSeguroKey(requestData2.encrypted_response = data.encrypted_response, requestData2, next); //	decrypt response
+    },
+    (data, next) => {
+        let respon = null;
+        try {
+            respon = requestData2.reponseJson = JSON.parse(data);
+        }
+        catch (ex) {
+            return next(ex);
+        }
+        console.time(`Device2 start connect to Seguro`);
+        requestData2.ws_Obj = wsConnect('ws://localhost:3000/connectToSeguro', respon.connect_info, (err, data) => {
+            if (err) {
+                console.log(util_1.inspect({ ws_device2_Error: err }, false, 2, true));
+                return next(err);
+            }
+            if (/Connected/.test(data.status)) {
+                console.timeEnd(`Device2 start connect to Seguro`);
+                requestData2.ws_handle = data;
+                console.time(`Send message to Device1 finished`);
+                return encryptMessage('hello device1', requestData1.device_armor, //			device1 public key
+                requestData2.device_private, //			device2 private key sign
+                next);
+            }
+            return console.log(util_1.inspect({ requestData2_wsConnect_getMessage: data }, false, 3, true));
+        });
+    },
+    (data, next) => requestPost({ encryptedMessage: data, connectUUID: requestData2.ws_handle.connectUUID }, '/postMessage', next)
+], (err, message) => {
     if (err) {
         return console.log(err);
     }
-    console.log(`requestPost success!`);
+    console.log(util_1.inspect({ Async_end: message }, false, 3, true));
 });
+/** */

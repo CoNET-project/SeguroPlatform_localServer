@@ -129,9 +129,16 @@ class LocalServer {
              */
             app.post('/postMessage', (req, res) => {
                 const post_data = req.body;
+                console.log(util_1.inspect({ 'localhost:3000/postMessage': post_data }, false, 2, true));
                 if (post_data.connectUUID) {
+                    if (!post_data.encryptedMessage) {
+                        console.log(util_1.inspect({ postMessage_ERROR_Have_not_encryptedMessage: post_data }, false, 3, true));
+                        res.sendStatus(404);
+                        return res.end();
+                    }
                     const index = this.connect_peer_pool.findIndex(n => n.serialID === post_data.connectUUID);
                     if (index < 0) {
+                        console.log(util_1.inspect({ postMessage_ERROR_Have_not_connectUUID: post_data }, false, 3, true));
                         res.sendStatus(404);
                         return res.end();
                     }
@@ -147,11 +154,12 @@ class LocalServer {
                 }
                 if (post_data.encryptedMessage) {
                     return getEncryptedMessagePublicKeyID(post_data.encryptedMessage, (err, keys) => {
-                        console.log(util_1.inspect({ getEncryptedMessagePublicKeyID: keys }, false, 3, true));
                         if (!keys || !keys.length) {
+                            console.log(util_1.inspect({ postMessage_ERROR_have_not_device_key_infomation: post_data }, false, 3, true));
                             res.sendStatus(500);
                             return res.end();
                         }
+                        console.log(util_1.inspect({ getEncryptedMessagePublicKeyID: keys }, false, 3, true));
                         keys.forEach(n => {
                             this.postMessageToLocalDevice(n, post_data.encryptedMessage);
                         });

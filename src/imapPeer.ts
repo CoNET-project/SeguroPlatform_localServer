@@ -110,48 +110,32 @@ export class imapPeer extends EventEmitter {
 		}
 
 
-		console.log ( ` subject = [${Buffer.from (subject).toString ('base64')}] this.pingUuid = [${ this.pingUuid }] base64 = [${ Buffer.from (this.pingUuid ).toString ('base64')}]`)
-		if ( subject ) {
 
-            /**
-             * 
-             * 
-             * 
-             */
-            
+		if ( attr.length < 40 ) {
 
-			if ( attr.length < 40 ) {
-				console.log (`new attr\n${ attr }\n`)
-				const _attr = attr.split (/\r?\n/)[0]
+			const _attr = attr.split (/\r?\n/)[0]
 
-				if ( !this.connected && !this.pinging ) {
-					this.Ping ( false )
-				}
-
-				if ( subject === _attr ) {
-					console.log (`\n\nthis.replyPing [${_attr }]\n\n this.ping.uuid = [${ this.pingUuid }]`)
-					
-					return this.replyPing ( subject )
-				}
-				console.log ( `this.pingUuid = [${ this.pingUuid  }] subject [${ subject }]`)
-				return console.log (`new attr\n${ _attr }\n _attr [${ Buffer.from (_attr).toString ('hex') }] subject [${ Buffer.from ( subject ).toString ('hex') }]]!== attr 【${ JSON.stringify ( _attr )}】`)
-			}
-			
-			
-			
-            
-
-			/**
-			 * 			ignore old mail
-			 */
-			if ( !this.connected ) {
-				return 
+			if ( !this.connected && !this.pinging ) {
+				this.Ping ( false )
 			}
 
-            return this.newMail ( attr, subject )
+			if ( subject === _attr ) {
+				console.log (`\n\nthis.replyPing [${_attr }]\n\n this.ping.uuid = [${ this.pingUuid }]`)
+				
+				return this.replyPing ( subject )
+			}
+			return console.log (`new attr\n${ _attr }\n _attr [${ Buffer.from (_attr).toString ('hex') }] subject [${ Buffer.from ( subject ).toString ('hex') }]]!== attr 【${ JSON.stringify ( _attr )}】`)
+		}
 
-		}		
-        console.log (`get mail have not subject\n\n`, email.toString() )
+
+		/**
+		 * 			ignore old mail
+		 */
+		if ( ! this.connected ) {
+			return 
+		}
+
+		return this.newMail ( attr, subject )
 
     }
 
@@ -167,8 +151,8 @@ export class imapPeer extends EventEmitter {
     }
 
     public AppendWImap1 ( mail: string, uuid: string, CallBack ) {
-        
-        return seneMessageToFolder ( this.imapData, this.writeBox, mail, uuid, true, CallBack )
+        const sendData = mail ? Buffer.from (mail).toString ( 'base64' ) : ''
+        return seneMessageToFolder ( this.imapData, this.writeBox, sendData , uuid, true, CallBack )
         
     }
 
@@ -270,7 +254,7 @@ export class imapPeer extends EventEmitter {
     constructor ( public imapData: imapConnect, private listenBox: string, private writeBox: string, public newMail, public exit: ( err?: number ) => void ) {
         super ()
         debug ? saveLog ( `doing peer account [${ imapData.imapUserName }] listen with[${ listenBox }], write with [${ writeBox }] `): null
-		console.dir ( `newMail = ${typeof newMail}` )
+		console.dir ( `newMail = ${ typeof newMail }` )
         this.newReadImap ()
 		
     }
