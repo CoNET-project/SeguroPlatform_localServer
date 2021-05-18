@@ -5,6 +5,7 @@ const openpgp_1 = require("openpgp");
 const async_1 = require("async");
 const uuid_1 = require("uuid");
 const util_1 = require("util");
+const crypto_1 = require("crypto");
 const http_1 = require("http");
 const WS = require("ws");
 const imapAccountArray = [
@@ -272,117 +273,111 @@ const wsConnect = (url, sendData, CallBack) => {
  *
  * 			test unit for try connect to Seguro network
  */
-/*
-let requestData: connectRequest_test = null
-let hash1 = ''
-
-
-waterfall ([
-    next => buildTestAccount ( next ),							//			Init device and Seguro key, puckup a Seguro public listening channel IMAP
-    
-    ( data, next ) => {
-        requestData = data
-        return encrypBySeguroMessage ( requestData, next )		//			create IMAP request
+let requestData = null;
+let hash1 = '';
+async_1.waterfall([
+    next => exports.buildTestAccount(next),
+    (data, next) => {
+        requestData = data;
+        return encrypBySeguroMessage(requestData, next); //			create IMAP request 
     },
-    ( data, next ) => {
-        requestData.encrypted_request = data
-        hash1 = createHash ('sha256').update ( data ).digest ('hex')
-        console.time (`requestPost [${ hash1 }]`)
-        return requestPost ( requestData, '/getInformationFromSeguro', next ) 		//	post request
+    (data, next) => {
+        requestData.encrypted_request = data;
+        hash1 = crypto_1.createHash('sha256').update(data).digest('hex');
+        console.time(`requestPost [${hash1}]`);
+        return requestPost(requestData, '/getInformationFromSeguro', next); //	post request
     },
-    ( data: connectRequest_test, next ) => {
-        console.timeEnd (`requestPost [${ hash1 }]`)
-        hash1 = createHash ('sha256').update ( data.encrypted_response ).digest ('hex')
-        return decryptMessageCheckSeguroKey ( requestData.encrypted_response = data.encrypted_response, requestData, next )		//	decrypt response
-    },
-    
-    ( data, next ) => {
-        let respon: connectRequest_test = null
-        try {
-            respon = requestData.reponseJson = JSON.parse ( data )
-        } catch ( ex ) {
-            return next ( ex )
+    (data, next) => {
+        if (data.error) {
+            return next(data.error);
         }
-        console.log ( inspect ( requestData, false, 3, true ))
-        console.time (`start connect to Seguro [${ hash1 }]`)
-
-        let callbak = false																					//	try connect Seguro use responsed connect_info
-        const ws = wsConnect ( 'ws://localhost:3000/connectToSeguro', respon.connect_info, ( err, data ) => {
-            console.timeEnd (`start connect to Seguro [${ hash1 }]`)
-            if ( err ) {
-                console.log ( inspect (`wsConnect callback err ${ err.message }`, false, 1, true ))
-                if ( !callbak ) {
-                    return next ( err )
-                }
-                return
-            }
-            
-            if ( /Connected/.test ( data.status )) {
-                callbak = true
-                console.timeEnd (`start connect to Seguro [${ hash1 }]`)
-                
-                return setTimeout (() => {											//		close ws connect
-                    ws.close ()
-                    return next ()
-                }, 2000 )
-            }
-            
-            console.log ( inspect ( data, false, 3, true ))
-        })
-
+        console.timeEnd(`requestPost [${hash1}]`);
+        hash1 = crypto_1.createHash('sha256').update(data.encrypted_response).digest('hex');
+        return decryptMessageCheckSeguroKey(requestData.encrypted_response = data.encrypted_response, requestData, next); //	decrypt response
     },
-    
-    next => {																						//	post request to next_time_connect
-        requestData.imap_account = requestData.reponseJson.next_time_connect.imap_account
-        requestData.server_folder = requestData.reponseJson.next_time_connect.server_folder
-        console.log ( inspect ({ startToGetConnectDatFromAP: 'Call /getInformationFromSeguro !' }))
-        return requestPost ( requestData, '/getInformationFromSeguro', next )
-    },
-    ( data: connectRequest_test, next ) => {														//	decrypt response
-        console.timeEnd (`requestPost [${ hash1 }]`)
-        hash1 = createHash ('sha256').update ( data.encrypted_response ).digest ('hex')
-        return decryptMessageCheckSeguroKey ( requestData.encrypted_response = data.encrypted_response, requestData, next )
-    },
-    ( data, next ) => {
-        let respon: connectRequest_test = null
+    (data, next) => {
+        let respon = null;
         try {
-            respon = requestData.reponseJson = JSON.parse ( data )
-        } catch ( ex ) {
-            return next ( ex )
+            respon = requestData.reponseJson = JSON.parse(data);
         }
-        console.time ( `start connect to Seguro [${ hash1 }]`)
-        console.log ( inspect ( requestData, false, 3, false ))										//	try connect Seguro use responsed connect_info
-        let callbak = false
-        const ws = wsConnect ( 'ws://localhost:3000/connectToSeguro', respon.connect_info, ( err, data ) => {
-            if ( err ) {
-                if ( !callbak ) {
-                    return next ( err )
+        catch (ex) {
+            return next(ex);
+        }
+        //console.log ( inspect ( requestData, false, 3, true ))
+        console.time(`start connect to Seguro [${hash1}]`);
+        let callbak = false; //	try connect Seguro use responsed connect_info
+        const ws = wsConnect('ws://localhost:3000/connectToSeguro', respon.connect_info, (err, data) => {
+            if (err) {
+                console.timeEnd(`start connect to Seguro [${hash1}]`);
+                console.log(util_1.inspect(`wsConnect callback err ${err.message}`, false, 1, true));
+                if (!callbak) {
+                    return next(err);
                 }
-                return
+                return;
             }
-            if ( /Connected/.test ( data.status )) {
-                callbak = true
-                console.timeEnd (`start connect to Seguro [${ hash1 }]`)
-                
-            
-
-                return setTimeout (() => {															//		close ws connect
-                    ws.close ()
-                    return next ()
-                }, 2000 )
+            if (/Connected/.test(data.status)) {
+                callbak = true;
+                console.timeEnd(`start connect to Seguro [${hash1}]`);
+                return setTimeout(() => {
+                    ws.close();
+                    return next();
+                }, 2000);
             }
-            console.log ( inspect ( data, false, 4, true ))
-
-        })
-
+            console.log(util_1.inspect(data, false, 3, true));
+        });
+    },
+    next => {
+        requestData.imap_account = JSON.parse(JSON.stringify(requestData.reponseJson.next_time_connect.imap_account));
+        requestData.server_folder = requestData.reponseJson.next_time_connect.server_folder;
+        delete requestData.encrypted_response;
+        delete requestData.reponseJson;
+        console.log(util_1.inspect({ startToGetConnectDatFromAP_use_next_imapInfo: 'Call /getInformationFromSeguro !', requestData: requestData }, false, 3, true));
+        return requestPost(requestData, '/getInformationFromSeguro', next);
+    },
+    (data, next) => {
+        if (data.error) {
+            return next(data.error);
+        }
+        console.log(util_1.inspect({ requestPost_next_callback: data }, false, 3, true)); //	decrypt response
+        console.timeEnd(`requestPost [${hash1}]`);
+        hash1 = crypto_1.createHash('sha256').update(data.encrypted_response).digest('hex');
+        return decryptMessageCheckSeguroKey(requestData.encrypted_response = data.encrypted_response, requestData, next);
+    },
+    (data, next) => {
+        let respon = null;
+        try {
+            respon = requestData.reponseJson = JSON.parse(data);
+        }
+        catch (ex) {
+            return next(ex);
+        }
+        console.time(`start connect to Seguro [${hash1}]`);
+        console.log(util_1.inspect(requestData, false, 3, false)); //	try connect Seguro use responsed connect_info
+        let callbak = false;
+        const ws = wsConnect('ws://localhost:3000/connectToSeguro', respon.connect_info, (err, data) => {
+            if (err) {
+                if (!callbak) {
+                    return next(err);
+                }
+                return;
+            }
+            if (/Connected/.test(data.status)) {
+                callbak = true;
+                console.timeEnd(`start connect to Seguro [${hash1}]`);
+                return setTimeout(() => {
+                    ws.close();
+                    return next();
+                }, 2000);
+            }
+            console.log(util_1.inspect(data, false, 4, true));
+        });
     }
-
-], ( err, message ) => {
-    if ( err ) {
-        return console.log ( err )
+], (err, message) => {
+    if (err) {
+        return console.log(err);
     }
-    console.log ( inspect ( message, false, 3, true ))
-})
+    console.log(util_1.inspect(message, false, 3, true));
+});
 /** */
 /**
  *
@@ -447,103 +442,119 @@ waterfall ([
  * 			test unit for try connect to Seguro network
  * 			device2 send message to device1
  */
-let requestData1 = null;
-let requestData2 = null;
-const endAll = () => {
-    requestData1.ws_Obj.close();
-    requestData2.ws_Obj.close();
-};
-async_1.waterfall([
-    next => exports.buildTestAccount(next),
-    (data, next) => {
-        requestData1 = data;
-        return encrypBySeguroMessage(requestData1, next); //			create IMAP request 
-    },
-    (data, next) => {
-        requestData1.encrypted_request = data;
-        console.time(`device1 requestPost`);
-        return requestPost(requestData1, '/getInformationFromSeguro', next); //	post request
-    },
-    (data, next) => {
-        console.timeEnd(`device1 requestPost`);
-        return decryptMessageCheckSeguroKey(requestData1.encrypted_response = data.encrypted_response, requestData1, next); //	decrypt response
-    },
-    (data, next) => {
-        let respon = null;
-        try {
-            respon = requestData1.reponseJson = JSON.parse(data);
-        }
-        catch (ex) {
-            return next(ex);
-        }
-        console.time(`Device1 start connect to Seguro`);
-        //	try connect Seguro use responsed connect_info
-        requestData1.ws_Obj = wsConnect('ws://localhost:3000/connectToSeguro', respon.connect_info, (err, data) => {
-            if (err) {
-                console.log(util_1.inspect({ ws_device1_Error: err }, false, 2, true));
-                return next(err);
-            }
-            if (/Connected/.test(data.status)) {
-                console.timeEnd(`Device1 start connect to Seguro`);
-                requestData1.ws_handle = data;
-                return exports.buildTestAccount(next); //		init device2
-            }
-            if (data.encryptedMessage) { //		get message from device2
-                return decryptMessage(data.encryptedMessage, requestData1.device_private, requestData2.device_armor, (err, data) => {
-                    if (err) {
-                        return console.log(util_1.inspect({ ws_device1_decryptMessage_Error: err }, false, 2, true));
+/*
+ let requestData1: connectRequest_test = null
+ let requestData2: connectRequest_test = null
+ 
+ const endAll = () => {
+    requestData1.ws_Obj.close ()
+    requestData2.ws_Obj.close ()
+ }
+ waterfall ([
+     next => buildTestAccount ( next ),							//			Init device1 and Seguro key, puckup a Seguro public listening channel IMAP
+     
+     ( data, next ) => {
+         requestData1 = data
+         return encrypBySeguroMessage ( requestData1, next )		//			create IMAP request
+     },
+     ( data, next ) => {
+         requestData1.encrypted_request = data
+         console.time (`device1 requestPost`)
+         return requestPost ( requestData1, '/getInformationFromSeguro', next ) 		//	post request
+     },
+     ( data: connectRequest_test, next ) => {
+         console.timeEnd (`device1 requestPost`)
+         return decryptMessageCheckSeguroKey ( requestData1.encrypted_response = data.encrypted_response, requestData1, next )		//	decrypt response
+     },
+     
+     ( data, next ) => {
+         let respon: connectRequest_test = null
+         try {
+             respon = requestData1.reponseJson = JSON.parse ( data )
+         } catch ( ex ) {
+             return next ( ex )
+         }
+         console.time (`Device1 start connect to Seguro`)
+ 
+                                                                                //	try connect Seguro use responsed connect_info
+        requestData1.ws_Obj = wsConnect ( 'ws://localhost:3000/connectToSeguro', respon.connect_info, ( err, data: postData ) => {
+            
+             if ( err ) {
+                 console.log ( inspect ({ ws_device1_Error: err }, false, 2, true ))
+                 return next ( err )
+             }
+             
+             if ( /Connected/.test ( data.status )) {
+                 console.timeEnd (`Device1 start connect to Seguro`)
+                 requestData1.ws_handle = data
+                 return buildTestAccount ( next )																//		init device2
+             }
+
+             if ( data.encryptedMessage ) {																		//		get message from device2
+                return decryptMessage ( data.encryptedMessage, requestData1.device_private, requestData2.device_armor, ( err, data ) => {
+                    if ( err ) {
+                        return console.log ( inspect ({ ws_device1_decryptMessage_Error: err }, false, 2, true ))
+                        
                     }
-                    console.timeEnd(`Send message to Device1 finished`);
-                    console.log(util_1.inspect({ requestData1_wsConnect_getMessage: data.data }, false, 3, true));
-                    endAll();
-                });
-            }
-            return console.log(util_1.inspect({ requestData1_wsConnect_getMessage: data }, false, 3, true));
-        });
-    },
-    (data, next) => {
-        requestData2 = data;
-        return encrypBySeguroMessage(requestData2, next); //			create IMAP request 
-    },
-    (data, next) => {
-        requestData2.encrypted_request = data;
-        console.time(`Device2 requestPost`);
-        return requestPost(requestData2, '/getInformationFromSeguro', next); //	post request
-    },
-    (data, next) => {
-        console.timeEnd(`Device2 requestPost`);
-        return decryptMessageCheckSeguroKey(requestData2.encrypted_response = data.encrypted_response, requestData2, next); //	decrypt response
-    },
-    (data, next) => {
-        let respon = null;
+                    console.timeEnd (`Send message to Device1 finished`)
+                    console.log ( inspect ( { requestData1_wsConnect_getMessage: data.data }, false, 3, true ))
+                    endAll ()
+                })
+             }
+             
+             return console.log ( inspect ( { requestData1_wsConnect_getMessage: data }, false, 3, true ))
+         })
+          
+ 
+     },
+     ( data, next ) => {
+        requestData2 = data
+        return encrypBySeguroMessage ( requestData2, next )		//			create IMAP request
+     },
+     ( data, next ) => {
+        requestData2.encrypted_request = data
+
+        console.time (`Device2 requestPost`)
+        return requestPost ( requestData2, '/getInformationFromSeguro', next ) 		//	post request
+     },
+     ( data, next ) => {
+        console.timeEnd (`Device2 requestPost`)
+        return decryptMessageCheckSeguroKey ( requestData2.encrypted_response = data.encrypted_response, requestData2, next )		//	decrypt response
+     },
+     ( data, next ) => {
+        let respon: connectRequest_test = null
         try {
-            respon = requestData2.reponseJson = JSON.parse(data);
+            respon = requestData2.reponseJson = JSON.parse ( data )
+        } catch ( ex ) {
+            return next ( ex )
         }
-        catch (ex) {
-            return next(ex);
-        }
-        console.time(`Device2 start connect to Seguro`);
-        requestData2.ws_Obj = wsConnect('ws://localhost:3000/connectToSeguro', respon.connect_info, (err, data) => {
-            if (err) {
-                console.log(util_1.inspect({ ws_device2_Error: err }, false, 2, true));
-                return next(err);
-            }
-            if (/Connected/.test(data.status)) {
-                console.timeEnd(`Device2 start connect to Seguro`);
-                requestData2.ws_handle = data;
-                console.time(`Send message to Device1 finished`);
-                return encryptMessage('hello device1', requestData1.device_armor, //			device1 public key
-                requestData2.device_private, //			device2 private key sign
-                next);
-            }
-            return console.log(util_1.inspect({ requestData2_wsConnect_getMessage: data }, false, 3, true));
-        });
-    },
-    (data, next) => requestPost({ encryptedMessage: data, connectUUID: requestData2.ws_handle.connectUUID }, '/postMessage', next)
-], (err, message) => {
-    if (err) {
-        return console.log(err);
-    }
-    console.log(util_1.inspect({ Async_end: message }, false, 3, true));
-});
-/** */
+        console.time (`Device2 start connect to Seguro`)
+        requestData2.ws_Obj = wsConnect ( 'ws://localhost:3000/connectToSeguro', respon.connect_info, ( err, data: postData ) => {
+            
+             if ( err ) {
+                 console.log ( inspect ({ ws_device2_Error: err }, false, 2, true ))
+                 return next ( err )
+             }
+             
+             if ( /Connected/.test ( data.status )) {
+                 console.timeEnd (`Device2 start connect to Seguro`)
+                 requestData2.ws_handle = data
+                 console.time (`Send message to Device1 finished`)
+                 return encryptMessage ( 'hello device1',
+                        requestData1.device_armor, 			//			device1 public key
+                        requestData2.device_private, 		//			device2 private key sign
+                        next )
+             }
+             
+             return console.log ( inspect ( { requestData2_wsConnect_getMessage: data }, false, 3, true ))
+         })
+     },
+     ( data, next ) => requestPost ( { encryptedMessage: data, connectUUID: requestData2.ws_handle.connectUUID }, '/postMessage', next )
+ 
+ ], ( err, message ) => {
+     if ( err ) {
+         return console.log ( err )
+     }
+     console.log ( inspect ( { Async_end: message }, false, 3, true ))
+ })
+ /** */

@@ -163,7 +163,7 @@ export class imapPeer extends EventEmitter {
 		debug ? saveLog ( `Make Time Out for a Ping, ping ID = [${ this.pingUuid }]`, true ): null
 		
         return this.waitingReplyTimeOut = setTimeout (() => {
-            //debug ? saveLog ( `ON setTimeOutOfPing this.emit ( 'pingTimeOut' ) pingID = [${ this.pingUuid }] `, true ): null
+            debug ? saveLog ( `ON setTimeOutOfPing this.emit ( 'pingTimeOut' ) pingID = [${ this.pingUuid }] `, true ): null
 			this.pingUuid = null
 			this.connected = false
 			this.pinging = false

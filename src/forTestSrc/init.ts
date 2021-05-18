@@ -309,7 +309,7 @@ const wsConnect = ( url: string, sendData, CallBack ) => {
  */
 
 
-/*
+
 let requestData: connectRequest_test = null
 let hash1 = ''
 
@@ -328,6 +328,9 @@ waterfall ([
 		return requestPost ( requestData, '/getInformationFromSeguro', next ) 		//	post request
 	},
 	( data: connectRequest_test, next ) => {
+		if ( data.error ) {
+			return next ( data.error )
+		}
 		console.timeEnd (`requestPost [${ hash1 }]`)
 		hash1 = createHash ('sha256').update ( data.encrypted_response ).digest ('hex')
 		return decryptMessageCheckSeguroKey ( requestData.encrypted_response = data.encrypted_response, requestData, next )		//	decrypt response
@@ -340,13 +343,14 @@ waterfall ([
 		} catch ( ex ) {
 			return next ( ex )
 		}
-		console.log ( inspect ( requestData, false, 3, true ))
+		//console.log ( inspect ( requestData, false, 3, true ))
 		console.time (`start connect to Seguro [${ hash1 }]`)
 
 		let callbak = false																					//	try connect Seguro use responsed connect_info
 		const ws = wsConnect ( 'ws://localhost:3000/connectToSeguro', respon.connect_info, ( err, data ) => {
-			console.timeEnd (`start connect to Seguro [${ hash1 }]`)
+
 			if ( err ) {
+				console.timeEnd (`start connect to Seguro [${ hash1 }]`)
 				console.log ( inspect (`wsConnect callback err ${ err.message }`, false, 1, true ))
 				if ( !callbak ) {
 					return next ( err )
@@ -370,17 +374,25 @@ waterfall ([
 	},
 	
 	next => {																						//	post request to next_time_connect
-		requestData.imap_account = requestData.reponseJson.next_time_connect.imap_account
+		requestData.imap_account = JSON.parse ( JSON.stringify ( requestData.reponseJson.next_time_connect.imap_account))
 		requestData.server_folder = requestData.reponseJson.next_time_connect.server_folder
-		console.log ( inspect ({ startToGetConnectDatFromAP: 'Call /getInformationFromSeguro !' }))
+		delete requestData.encrypted_response
+		delete requestData.reponseJson
+		console.log ( inspect ({ startToGetConnectDatFromAP_use_next_imapInfo: 'Call /getInformationFromSeguro !', requestData: requestData }, false, 3, true ))
 		return requestPost ( requestData, '/getInformationFromSeguro', next )						
 	},
-	( data: connectRequest_test, next ) => {														//	decrypt response
+	( data: connectRequest_test, next ) => {
+		if ( data.error ) {
+			return next ( data.error  )
+		}	
+		console.log ( inspect ({ requestPost_next_callback: data }, false, 3, true ))													//	decrypt response
 		console.timeEnd (`requestPost [${ hash1 }]`)
 		hash1 = createHash ('sha256').update ( data.encrypted_response ).digest ('hex')
 		return decryptMessageCheckSeguroKey ( requestData.encrypted_response = data.encrypted_response, requestData, next )		
 	},
+
 	( data, next ) => {
+		
 		let respon: connectRequest_test = null
 		try {
 			respon = requestData.reponseJson = JSON.parse ( data )
@@ -490,7 +502,7 @@ waterfall ([
  * 			test unit for try connect to Seguro network
  * 			device2 send message to device1
  */
-
+/*
  let requestData1: connectRequest_test = null
  let requestData2: connectRequest_test = null
  

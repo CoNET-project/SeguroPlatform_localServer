@@ -71,6 +71,10 @@ const buildConnectGetImap = ( requestObj: connectRequest, CallBack ) => {
 	}
 
 	let appendCount = 0
+	let timeout = requestObj.encrypted_response = null
+	console.log ( inspect ( imapData, false, 3, true ))
+
+	requestObj.error = null
 
 	const newMail = mail => {
 		requestObj.encrypted_response = getMailAttached ( mail )
@@ -78,8 +82,7 @@ const buildConnectGetImap = ( requestObj: connectRequest, CallBack ) => {
 	}
 
 	const cleanUp = () => {
-
-		
+		clearTimeout ( timeout )
 		return rImap.logout (() => {
 			CallBack ( null, requestObj )
 		})
@@ -89,12 +92,16 @@ const buildConnectGetImap = ( requestObj: connectRequest, CallBack ) => {
 		return seneMessageToFolder ( imapData, requestObj.server_folder, Buffer.from ( requestObj.encrypted_request ).toString ('base64'), '', false, err => {
 			if ( err ) {
 				console.log ( err )
-				if ( ++appendCount > 3 ) {
-					requestObj.error = `imap append error [${ err.message }]`
+				if ( ++ appendCount > 3 ) {
+					requestObj.error = `IMAP server append error!`
 					return cleanUp ()
 				}
 				return sendMessage ()
 			}
+			timeout = setTimeout (() => {
+				requestObj.error = 'Listening time out!'
+				return cleanUp ()
+			}, 15000 )
 		})
 	}
 

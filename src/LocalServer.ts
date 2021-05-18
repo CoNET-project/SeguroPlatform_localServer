@@ -74,7 +74,7 @@ class LocalServer {
     private initialize = async () => {
 
         const app = express()
-		const wsServer = new WsServer ({ noServer: true })
+
 		const wsServerConnect = new WsServer ({ noServer: true })
 
         app.use ( express.static ( 'static' ))
@@ -186,7 +186,7 @@ class LocalServer {
 				}
 				const ws = this.connect_peer_pool [ index ]
 				
-				console.log ( inspect( { 'localhost:3000/postMessage post to Seguro network!' : post_data.encryptedMessage }, false, 2, true ))
+				
 				return ws.AppendWImap1 ( post_data.encryptedMessage, '', err => {
 					if ( err ) {
 						res.sendStatus ( 500 )
@@ -266,6 +266,14 @@ class LocalServer {
 					})
 					
 				})
+
+				peer.once ('pingTimeOut', () => {
+					peer.destroy ()
+					ws.send ( JSON.stringify ({ status: 'pingTimeOut' }))
+					return ws.close ()
+
+				})
+
 			})
 
 		})
@@ -292,8 +300,6 @@ class LocalServer {
 					return ws.close ()
 				}
 
-				
-				
 				ws.publicKeyID = device
 				this.connect_peer_pool.push ( ws )
 				const sendData  = { key_ids: `${ key.getKeyIds().map ( n => n.toHex().toUpperCase()) }`}
@@ -312,11 +318,7 @@ class LocalServer {
 
 		})
 
-
-
-
-
-        this.localserver = app.listen ( this.PORT, () => {
+        this.localserver = app.listen ( this.PORT, 'localhost', () => {
             return console.table([
                 { 'Kloak Local Server': `http://localhost:${ this.PORT }, local-path = [${ folder}]` }
             ])

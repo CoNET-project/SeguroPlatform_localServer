@@ -46,7 +46,6 @@ class LocalServer {
         };
         this.initialize = async () => {
             const app = express();
-            const wsServer = new ws_1.Server({ noServer: true });
             const wsServerConnect = new ws_1.Server({ noServer: true });
             app.use(express.static('static'));
             const folder = path_1.join(this.appsPath, 'launcher');
@@ -143,7 +142,6 @@ class LocalServer {
                         return res.end();
                     }
                     const ws = this.connect_peer_pool[index];
-                    console.log(util_1.inspect({ 'localhost:3000/postMessage post to Seguro network!': post_data.encryptedMessage }, false, 2, true));
                     return ws.AppendWImap1(post_data.encryptedMessage, '', err => {
                         if (err) {
                             res.sendStatus(500);
@@ -203,6 +201,11 @@ class LocalServer {
                             console.log(`WS [${serialID}] on close`);
                         });
                     });
+                    peer.once('pingTimeOut', () => {
+                        peer.destroy();
+                        ws.send(JSON.stringify({ status: 'pingTimeOut' }));
+                        return ws.close();
+                    });
                 });
             });
             wsServerConnect.on('peerToPeerConnecting', ws => {
@@ -238,7 +241,7 @@ class LocalServer {
                     });
                 });
             });
-            this.localserver = app.listen(this.PORT, () => {
+            this.localserver = app.listen(this.PORT, 'localhost', () => {
                 return console.table([
                     { 'Kloak Local Server': `http://localhost:${this.PORT}, local-path = [${folder}]` }
                 ]);
