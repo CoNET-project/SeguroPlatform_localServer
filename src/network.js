@@ -5,7 +5,6 @@ const tls_1 = require("tls");
 const async_1 = require("async");
 const Imap_1 = require("./Imap");
 const imapPeer_1 = require("./imapPeer");
-const util_1 = require("util");
 const connerver = (imapServer, CallBack) => {
     let err = null;
     let time;
@@ -65,7 +64,7 @@ const buildConnectGetImap = (requestObj, CallBack) => {
     };
     let appendCount = 0;
     let timeout = requestObj.encrypted_response = null;
-    console.log(util_1.inspect(imapData, false, 3, true));
+    let _callback = false;
     requestObj.error = null;
     const newMail = mail => {
         requestObj.encrypted_response = Imap_1.getMailAttached(mail);
@@ -74,7 +73,11 @@ const buildConnectGetImap = (requestObj, CallBack) => {
     const cleanUp = () => {
         clearTimeout(timeout);
         return rImap.logout(() => {
-            CallBack(null, requestObj);
+            _callback = true;
+            if (requestObj.error) {
+                return CallBack(new Error(requestObj.error));
+            }
+            return CallBack(null, requestObj);
         });
     };
     const sendMessage = () => {
@@ -87,7 +90,7 @@ const buildConnectGetImap = (requestObj, CallBack) => {
                 }
                 return sendMessage();
             }
-            timeout = setTimeout(() => {
+            return timeout = setTimeout(() => {
                 requestObj.error = 'Listening time out!';
                 return cleanUp();
             }, 15000);
@@ -96,6 +99,11 @@ const buildConnectGetImap = (requestObj, CallBack) => {
     const rImap = new Imap_1.qtGateImapRead(imapData, requestObj.client_folder_name, false, newMail, false);
     rImap.once('ready', () => {
         return sendMessage();
+    });
+    rImap.once('end', err => {
+        if (err && !_callback) {
+            return CallBack(new Error('Cant reach email server'));
+        }
     });
 };
 const buildConnect = (reponseJson, CallBack) => {

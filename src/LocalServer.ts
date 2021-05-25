@@ -1,5 +1,6 @@
 import * as express from 'express'
 import type { Server } from 'http'
+import { resolve } from 'dns'
 import { Server as WsServer } from 'ws'
 import { readKey, readMessage, Message, enums, encrypt } from 'openpgp'
 import { normalize, join } from 'path'
@@ -10,7 +11,8 @@ import { inspect } from 'util'
 import type { imapPeer } from './imapPeer'
 import { testImapServer, getInformationFromSeguro, buildConnect } from './network'
 const upload = require ( 'multer' )()
-
+import { each } from 'async'
+const testDomainName = ['yahoo.com','microsoft.com','taobao.com','adobe.com']
 const getEncryptedMessagePublicKeyID = async ( encryptedMessage: string, CallBack ) => {
 	const encryptObj = await readMessage({ armoredMessage: encryptedMessage })
 	return CallBack ( null, encryptObj.getEncryptionKeyIds().map ( n => n.toHex().toUpperCase()))
@@ -145,7 +147,7 @@ class LocalServer {
 		 * 		time: connected time | null if have error
 		 * }
 		 */
-		app.get ( '/testNetwork', ( req, res ) => {
+		app.get ( '/testImapServer', ( req, res ) => {
 			return testImapServer (( _err, data: any [] ) => {
 				return res.json ({ data: data })
 			})
@@ -158,8 +160,14 @@ class LocalServer {
 			const requestObj: connectRequest = req.body
 			return getInformationFromSeguro ( requestObj, ( err, data )=> {
 				if ( err ) {
-					res.sendStatus ( 400 )
-					return res.end ()
+					const _err = err.message
+					if ( /Listening/i.test ( _err )) {
+						return res.sendStatus ( 408 ).end ()
+					}
+					if ( /reach email/i.test ( _err )) {
+						return res.sendStatus ( 503 ).end ()
+					}
+					return res.sendStatus ( 400 ).end ()
 				}
 				return res.json ( data )
 			})
@@ -225,7 +233,6 @@ class LocalServer {
 			res.sendStatus ( 404 )
 			return res.end ()
 		})
-		
 
 		wsServerConnect.on ( 'connection', ws => {
 
@@ -255,6 +262,7 @@ class LocalServer {
 				this.connect_peer_pool.push ( peer )
 
 				ws.once ( 'close', () => {
+
 					return peer.closePeer (() => {
 						const index = this.connect_peer_pool.findIndex ( n => n.serialID === serialID )
 						if ( index > -1 ) {
@@ -267,8 +275,7 @@ class LocalServer {
 					
 				})
 
-				peer.once ('pingTimeOut', () => {
-					peer.destroy ()
+				peer.once ( 'pingTimeOut', () => {
 					ws.send ( JSON.stringify ({ status: 'pingTimeOut' }))
 					return ws.close ()
 
@@ -338,6 +345,8 @@ class LocalServer {
 			console.log (`unallowed ${ request.url } `)
 			return socket.destroy()
 		})
+
+
     }
 }
 

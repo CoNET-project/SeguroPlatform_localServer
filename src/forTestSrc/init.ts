@@ -5,7 +5,7 @@ import { v4 } from 'uuid'
 import { inspect } from 'util'
 import { createHash } from 'crypto'
 
-import { request } from 'http'
+import { request, get } from 'http'
 import * as WS from 'ws'
 import type { RequestOptions } from 'http'
 const imapAccountArray =
@@ -304,10 +304,31 @@ const wsConnect = ( url: string, sendData, CallBack ) => {
 }
 
 /**
+ * 				test online
+ */
+/*
+get ('http://localhost:3000/testNetwork', res => {
+	let data = ''
+	res.on ('data', _data => {
+		data += _data.toString ()
+	})
+	res.once ('end', () => {
+		console.log ( inspect ({ success: data }, false, 3, true ))
+	})
+
+}).once ('error', err => {
+	console.log (`localhost:3000 has shutdown!`)
+})
+
+
+
+
+/** */
+/**
  * 
  * 			test unit for try connect to Seguro network 
  */
-
+/*
 
 
 let requestData: connectRequest_test = null
@@ -350,7 +371,7 @@ waterfall ([
 		const ws = wsConnect ( 'ws://localhost:3000/connectToSeguro', respon.connect_info, ( err, data ) => {
 
 			if ( err ) {
-				console.timeEnd (`start connect to Seguro [${ hash1 }]`)
+				console.timeEnd (`first connecting connected! [${ hash1 }]`)
 				console.log ( inspect (`wsConnect callback err ${ err.message }`, false, 1, true ))
 				if ( !callbak ) {
 					return next ( err )
@@ -360,12 +381,12 @@ waterfall ([
 			
 			if ( /Connected/.test ( data.status )) {
 				callbak = true
-				console.timeEnd (`start connect to Seguro [${ hash1 }]`)
+				console.timeEnd (`first connecting connected! [${ hash1 }]`)
 				
 				return setTimeout (() => {											//		close ws connect
 					ws.close ()
 					return next ()
-				}, 2000 )
+				}, 1000 )
 			}
 			
 			console.log ( inspect ( data, false, 3, true ))
@@ -373,7 +394,8 @@ waterfall ([
 
 	},
 	
-	next => {																						//	post request to next_time_connect
+	next => {		
+		console.time ( `requestPost use next connect_info [${ hash1 }]`)																				//	post request to next_time_connect
 		requestData.imap_account = JSON.parse ( JSON.stringify ( requestData.reponseJson.next_time_connect.imap_account))
 		requestData.server_folder = requestData.reponseJson.next_time_connect.server_folder
 		delete requestData.encrypted_response
@@ -386,20 +408,20 @@ waterfall ([
 			return next ( data.error  )
 		}	
 		console.log ( inspect ({ requestPost_next_callback: data }, false, 3, true ))													//	decrypt response
-		console.timeEnd (`requestPost [${ hash1 }]`)
+		
 		hash1 = createHash ('sha256').update ( data.encrypted_response ).digest ('hex')
 		return decryptMessageCheckSeguroKey ( requestData.encrypted_response = data.encrypted_response, requestData, next )		
 	},
 
 	( data, next ) => {
-		
+		console.timeEnd ( `requestPost use next connect_info [${ hash1 }]`)
 		let respon: connectRequest_test = null
 		try {
 			respon = requestData.reponseJson = JSON.parse ( data )
 		} catch ( ex ) {
 			return next ( ex )
 		}
-		console.time ( `start connect to Seguro [${ hash1 }]`)
+		console.time ( `connected to Seguro use next_connect_info [${ hash1 }]`)
 		console.log ( inspect ( requestData, false, 3, false ))										//	try connect Seguro use responsed connect_info
 		let callbak = false
 		const ws = wsConnect ( 'ws://localhost:3000/connectToSeguro', respon.connect_info, ( err, data ) => {
@@ -411,7 +433,7 @@ waterfall ([
 			}
 			if ( /Connected/.test ( data.status )) {
 				callbak = true
-				console.timeEnd (`start connect to Seguro [${ hash1 }]`)
+				console.timeEnd (`connected to Seguro use next_connect_info [${ hash1 }]`)
 				
 			
 

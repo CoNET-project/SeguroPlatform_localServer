@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const express = require("express");
+const dns_1 = require("dns");
 const ws_1 = require("ws");
 const openpgp_1 = require("openpgp");
 const path_1 = require("path");
@@ -10,6 +11,8 @@ const Imap_1 = require("./Imap");
 const util_1 = require("util");
 const network_1 = require("./network");
 const upload = require('multer')();
+const async_1 = require("async");
+const testDomainName = ['yahoo.com', 'microsoft.com', 'taobao.com', 'adobe.com'];
 const getEncryptedMessagePublicKeyID = async (encryptedMessage, CallBack) => {
     const encryptObj = await openpgp_1.readMessage({ armoredMessage: encryptedMessage });
     return CallBack(null, encryptObj.getEncryptionKeyIds().map(n => n.toHex().toUpperCase()));
@@ -105,7 +108,7 @@ class LocalServer {
              * 		time: connected time | null if have error
              * }
              */
-            app.get('/testNetwork', (req, res) => {
+            app.get('/testImapServer', (req, res) => {
                 return network_1.testImapServer((_err, data) => {
                     return res.json({ data: data });
                 });
@@ -117,8 +120,14 @@ class LocalServer {
                 const requestObj = req.body;
                 return network_1.getInformationFromSeguro(requestObj, (err, data) => {
                     if (err) {
-                        res.sendStatus(400);
-                        return res.end();
+                        const _err = err.message;
+                        if (/Listening/i.test(_err)) {
+                            return res.sendStatus(408).end();
+                        }
+                        if (/reach email/i.test(_err)) {
+                            return res.sendStatus(503).end();
+                        }
+                        return res.sendStatus(400).end();
                     }
                     return res.json(data);
                 });
@@ -172,6 +181,20 @@ class LocalServer {
                 res.sendStatus(404);
                 return res.end();
             });
+            app.post('/testInternet', (req, res) => {
+                let online = false;
+                return async_1.each(testDomainName, (n, next) => {
+                    return dns_1.resolve(n, (err, data) => {
+                        if (err) {
+                            return next();
+                        }
+                        online = true;
+                        next();
+                    });
+                }, () => {
+                    return res.json(online);
+                });
+            });
             wsServerConnect.on('connection', ws => {
                 ws.on('message', message => {
                     let kk = null;
@@ -202,7 +225,6 @@ class LocalServer {
                         });
                     });
                     peer.once('pingTimeOut', () => {
-                        peer.destroy();
                         ws.send(JSON.stringify({ status: 'pingTimeOut' }));
                         return ws.close();
                     });

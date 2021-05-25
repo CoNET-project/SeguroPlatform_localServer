@@ -261,7 +261,7 @@ export class imapPeer extends EventEmitter {
 
 	public closePeer ( CallBack ) {
 		return  series ([
-			next => this.AppendWImap1 ('', 'Close.', next ),
+			next => this.AppendWImap1 ( '', 'Close.', next ),
 			next => this.rImap.logout ( next )
 		], CallBack )
 		
