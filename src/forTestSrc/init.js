@@ -376,7 +376,7 @@ async_1.waterfall([
                 return setTimeout(() => {
                     ws.close();
                     return next();
-                }, 1000 * 60 * 10);
+                }, 1000 * 60 * 30);
             }
             console.log(util_1.inspect(data, false, 3, true));
         });

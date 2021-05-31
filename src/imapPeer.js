@@ -209,10 +209,12 @@ class imapPeer extends events_1.EventEmitter {
         this.newReadImap();
     }
     closePeer(CallBack) {
-        return async_1.series([
-            next => this.AppendWImap1('', 'Close.', next),
-            next => this.rImap.logout(next)
-        ], CallBack);
+        this.AppendWImap1('', 'Close.', err => {
+            if (typeof this.rImap?.logout === 'function') {
+                return this.rImap.logout(CallBack);
+            }
+            return CallBack();
+        });
     }
     destroy(err) {
         clearTimeout(this.waitingReplyTimeOut);

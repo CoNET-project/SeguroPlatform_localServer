@@ -426,7 +426,7 @@ waterfall ([
 				return setTimeout (() => {											//		close ws connect
 					ws.close ()
 					return next ()
-				}, 1000 * 60 * 10 )
+				}, 1000 * 60 * 30 )
 			}
 			
 			console.log ( inspect ( data, false, 3, true ))

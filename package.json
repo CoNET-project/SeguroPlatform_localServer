@@ -29,11 +29,11 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/CoNET-project/kloak-network.git"
+		"url": "git+https://github.com/CoNET-project/SeguroPlatform_localServer.git"
 	},
 	"author": "Kloak Information Technologies Inc. <info@kloak.app>",
 	"bugs": {
-		"url": "https://github.com/CoNET-project/kloak-network/issues"
+		"url": "https://github.com/CoNET-project/SeguroPlatform_localServer/issues"
 	},
 	"homepage": "https://www.kloak.app",
 	"main": "src/LocalServer.js",
