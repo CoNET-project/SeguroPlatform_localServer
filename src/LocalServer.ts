@@ -13,9 +13,10 @@ import { testImapServer, getInformationFromSeguro, buildConnect } from './networ
 const upload = require ( 'multer' )()
 import { each } from 'async'
 const testDomainName = ['yahoo.com','microsoft.com','taobao.com','adobe.com']
+
 const getEncryptedMessagePublicKeyID = async ( encryptedMessage: string, CallBack ) => {
 	const encryptObj = await readMessage({ armoredMessage: encryptedMessage })
-	return CallBack ( null, encryptObj.getEncryptionKeyIds().map ( n => n.toHex().toUpperCase()))
+	return CallBack ( null, encryptObj.getEncryptionKeyIDs().map ( n => n.toHex().toUpperCase()))
 }
 
 
@@ -158,6 +159,7 @@ class LocalServer {
 		 */
 		app.post ( '/getInformationFromSeguro', ( req, res ) => {
 			const requestObj: connectRequest = req.body
+			console.log ( inspect ( requestObj, false, 3, true ))
 			return getInformationFromSeguro ( requestObj, ( err, data )=> {
 				if ( err ) {
 					const _err = err.message
@@ -299,9 +301,9 @@ class LocalServer {
 				}
 				
 				const key = await readKey ({ armoredKey: kk.device_armor })
-				const device = key.getKeyIds()[1].toHex ().toUpperCase ()
+				const device = key.getKeyIDs()[1].toHex ().toUpperCase ()
 				if ( !device ) {
-					const sendData = { status: `Error: device_armor have not subkey!`, key_ids: `${ key.getKeyIds().map ( n => n.toHex().toUpperCase()) }` }
+					const sendData = { status: `Error: device_armor have not subkey!`, key_ids: `${ key.getKeyIDs().map ( n => n.toHex().toUpperCase()) }` }
 					ws.send ( JSON.stringify ( sendData ) )
 					console.log ( inspect ( sendData, false, 3, true  ))
 					return ws.close ()
@@ -309,7 +311,7 @@ class LocalServer {
 
 				ws.publicKeyID = device
 				this.connect_peer_pool.push ( ws )
-				const sendData  = { key_ids: `${ key.getKeyIds().map ( n => n.toHex().toUpperCase()) }`}
+				const sendData  = { key_ids: `${ key.getKeyIDs().map ( n => n.toHex().toUpperCase()) }`}
 				ws.send ( JSON.stringify (  sendData ))
 				console.log ( inspect ( sendData, false , 3, true ))
 

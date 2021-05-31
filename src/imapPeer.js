@@ -6,10 +6,10 @@ const Imap_1 = require("./Imap");
 const async_1 = require("async");
 const uuid_1 = require("uuid");
 const resetConnectTimeLength = 1000 * 60 * 15;
-const pingPongTimeOut = 1000 * 15;
+const pingPongTimeOut = 1000 * 10;
 const debug = true;
 const seneMessageToFolder = (IMapConnect, writeFolder, message, subject, createFolder, CallBack) => {
-    const wImap = new Imap_1.qtGateImap(IMapConnect, null, false, writeFolder, debug, null);
+    const wImap = new Imap_1.qtGateImap(IMapConnect, null, false, writeFolder, debug, null, true);
     let _callback = false;
     //console.log ( `seneMessageToFolder !!! ${ subject }`)
     wImap.once('error', err => {
@@ -40,30 +40,23 @@ const seneMessageToFolder = (IMapConnect, writeFolder, message, subject, createF
 };
 exports.seneMessageToFolder = seneMessageToFolder;
 class imapPeer extends events_1.EventEmitter {
-    constructor(imapData, listenBox, writeBox, newMail, exit) {
-        super();
-        this.imapData = imapData;
-        this.listenBox = listenBox;
-        this.writeBox = writeBox;
-        this.newMail = newMail;
-        this.exit = exit;
-        this.domainName = this.imapData.imapUserName.split('@')[1];
-        this.waitingReplyTimeOut = null;
-        this.pingUuid = null;
-        this.doingDestroy = false;
-        this.peerReady = false;
-        this.makeRImap = false;
-        this.needPingTimeOut = null;
-        this.pinging = false;
-        this.connected = false;
-        this.rImap_restart = false;
-        this.checkSocketConnectTime = null;
-        this.serialID = uuid_1.v4();
-        this.rImap = null;
-        debug ? Imap_1.saveLog(`doing peer account [${imapData.imapUserName}] listen with[${listenBox}], write with [${writeBox}] `) : null;
-        console.dir(`newMail = ${typeof newMail}`);
-        this.newReadImap();
-    }
+    imapData;
+    listenBox;
+    writeBox;
+    newMail;
+    exit;
+    domainName = '';
+    waitingReplyTimeOut = null;
+    pingUuid = null;
+    doingDestroy = false;
+    peerReady = false;
+    makeRImap = false;
+    needPingTimeOut = null;
+    pinging = false;
+    connected = false;
+    rImap_restart = false;
+    checkSocketConnectTime = null;
+    serialID = uuid_1.v4();
     restart_rImap() {
         console.dir('restart_rImap');
         if (this.rImap_restart) {
@@ -101,16 +94,13 @@ class imapPeer extends events_1.EventEmitter {
             clearTimeout(this.waitingReplyTimeOut);
             return this.emit('CoNETConnected', attr);
         }
-        if (attr.length < 40) {
+        if (attr.length < 100) {
             const _attr = attr.split(/\r?\n/)[0];
             if (!this.connected && !this.pinging) {
                 this.Ping(false);
             }
-            if (subject === _attr) {
-                console.log(`\n\nthis.replyPing [${_attr}]\n\n this.ping.uuid = [${this.pingUuid}]`);
-                return this.replyPing(subject);
-            }
-            return console.log(`new attr\n${_attr}\n _attr [${Buffer.from(_attr).toString('hex')}] subject [${Buffer.from(subject).toString('hex')}]]!== attr 【${JSON.stringify(_attr)}】`);
+            console.log(`\n\nthis.replyPing [${_attr}]\n\n this.ping.uuid = [${this.pingUuid}]`);
+            return this.replyPing(subject);
         }
         /**
          * 			ignore old mail
@@ -163,6 +153,7 @@ class imapPeer extends events_1.EventEmitter {
             return this.setTimeOutOfPing(sendMail);
         });
     }
+    rImap = null;
     newReadImap() {
         if (this.makeRImap || this.rImap && this.rImap.imapStream && this.rImap.imapStream.readable) {
             return debug ? Imap_1.saveLog(`newReadImap have rImap.imapStream.readable = true, stop!`, true) : null;
@@ -171,7 +162,7 @@ class imapPeer extends events_1.EventEmitter {
         //saveLog ( `=====> newReadImap!`, true )
         this.rImap = new Imap_1.qtGateImapRead(this.imapData, this.listenBox, debug, email => {
             this.mail(email);
-        }, true);
+        });
         this.rImap.once('ready', () => {
             this.emit('ready');
             this.makeRImap = this.rImap_restart = false;
@@ -204,6 +195,18 @@ class imapPeer extends events_1.EventEmitter {
             }
             debug ? Imap_1.saveLog(`imapPeer rImap on END! but this.exit have not a function `) : null;
         });
+    }
+    constructor(imapData, listenBox, writeBox, newMail, exit) {
+        super();
+        this.imapData = imapData;
+        this.listenBox = listenBox;
+        this.writeBox = writeBox;
+        this.newMail = newMail;
+        this.exit = exit;
+        this.domainName = this.imapData.imapUserName.split('@')[1];
+        debug ? Imap_1.saveLog(`doing peer account [${imapData.imapUserName}] listen with[${listenBox}], write with [${writeBox}] `) : null;
+        console.dir(`newMail = ${typeof newMail}`);
+        this.newReadImap();
     }
     closePeer(CallBack) {
         return async_1.series([

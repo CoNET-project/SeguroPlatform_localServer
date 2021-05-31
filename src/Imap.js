@@ -40,40 +40,38 @@ const debugOut = (text, isIn, serialID) => {
 };
 const idleInterval = 1000 * 60 * 15; // 5 mins
 class ImapServerSwitchStream extends stream_1.Transform {
-    constructor(imapServer, exitWithDeleteBox, debug) {
-        super();
-        this.imapServer = imapServer;
-        this.exitWithDeleteBox = exitWithDeleteBox;
-        this.debug = debug;
-        this._buffer = buffer_1.Buffer.alloc(0);
-        this.Tag = null;
-        this.cmd = null;
-        this.callback = false;
-        this.doCommandCallback = null;
-        this._login = false;
-        this.first = true;
-        this.waitLogoutCallBack = null;
-        this.idleResponsrTime = null;
-        this.ready = false;
-        this.appendWaitResponsrTimeOut = null;
-        this.runningCommand = null;
-        //private nextRead = true
-        this.idleNextStop = null;
-        this.reNewCount = 0;
-        this.isImapUserLoginSuccess = false;
-        this.newSwitchRet = false;
-        this.doingIdle = false;
-        this.needLoginout = null;
-        this.fetchEmptyBody = false;
-        this.isFetchBodyFinished = false;
-    }
+    imapServer;
+    exitWithDeleteBox;
+    debug;
     commandProcess(text, cmdArray, next, callback) { }
+    name;
+    _buffer = buffer_1.Buffer.alloc(0);
     serverCommandError(err, CallBack) {
         this.imapServer.emit('error', err);
         if (CallBack) {
             CallBack(err);
         }
     }
+    Tag = null;
+    cmd = null;
+    callback = false;
+    doCommandCallback = null;
+    _login = false;
+    first = true;
+    waitLogoutCallBack = null;
+    idleResponsrTime = null;
+    ready = false;
+    appendWaitResponsrTimeOut = null;
+    runningCommand = null;
+    //private nextRead = true
+    idleNextStop = null;
+    reNewCount = 0;
+    isImapUserLoginSuccess = false;
+    newSwitchRet = false;
+    doingIdle = false;
+    needLoginout = null;
+    fetchEmptyBody = false;
+    isFetchBodyFinished = false;
     idleDoingDown() {
         if (!this.doingIdle || this.runningCommand !== 'idle') {
             return; //console.dir (`idleDoingDown stop because this.doingIdle === false!`)
@@ -89,6 +87,12 @@ class ImapServerSwitchStream extends stream_1.Transform {
          *
          */
         return this.imapServer.destroyAll(null);
+    }
+    constructor(imapServer, exitWithDeleteBox, debug) {
+        super();
+        this.imapServer = imapServer;
+        this.exitWithDeleteBox = exitWithDeleteBox;
+        this.debug = debug;
     }
     doCapability(capability) {
         this.imapServer.serverSupportTag = capability;
@@ -398,6 +402,12 @@ class ImapServerSwitchStream extends stream_1.Transform {
                             this.idleDoingDown();
                         }
                     }
+                    /**
+                     * 			Seupport Microsoft Exchange IMAP4
+                     */
+                    if (/BYE Connection closed/i.test(cmdArray[0])) {
+                        return this.imapServer.destroyAll(new Error(`ERROR: BYE Connection closed `));
+                    }
                     return callback();
                 }
                 default:
@@ -478,7 +488,7 @@ class ImapServerSwitchStream extends stream_1.Transform {
                 }
             }
             if (openBox) {
-                return this.openBox(CallBack);
+                return this.openBoxV1(folderName, CallBack);
             }
             return CallBack();
         };
@@ -492,39 +502,6 @@ class ImapServerSwitchStream extends stream_1.Transform {
             return this.push(this.cmd + '\r\n');
         }
         return this.imapServer.destroyAll(null);
-    }
-    openBox(CallBack) {
-        this.newSwitchRet = false;
-        let UID = 0;
-        this.doCommandCallback = (err) => {
-            if (err) {
-                return this.createBox(true, this.imapServer.listenFolder, CallBack);
-            }
-            CallBack(null, this.newSwitchRet, UID);
-        };
-        this.commandProcess = (text, cmdArray, next, _callback) => {
-            switch (cmdArray[0]) {
-                case '*': {
-                    if (/^EXISTS$|^UIDNEXT$|UNSEEN/i.test(cmdArray[2])) {
-                        const _num = text.split('UNSEEN ')[1];
-                        if (_num) {
-                            UID = parseInt(_num.split(']')[0]);
-                        }
-                        this.newSwitchRet = true;
-                    }
-                    return _callback();
-                }
-                default:
-                    return _callback();
-            }
-        };
-        const conText = this.imapServer.condStoreSupport ? ' (CONDSTORE)' : '';
-        this.Tag = `A${this.imapServer.TagCount1()}`;
-        this.cmd = `${this.Tag} SELECT "${this.imapServer.listenFolder}"${conText}`;
-        this.debug ? debugOut(this.cmd, false, this.imapServer.listenFolder || this.imapServer.imapSerialID) : null;
-        if (this.writable)
-            return this.push(this.cmd + '\r\n');
-        this.imapServer.destroyAll(null);
     }
     openBoxV1(folder, CallBack) {
         this.newSwitchRet = false;
@@ -920,42 +897,34 @@ class ImapServerSwitchStream extends stream_1.Transform {
 }
 const connectTimeOut = 10 * 1000;
 class qtGateImap extends events_1.EventEmitter {
-    constructor(IMapConnect, listenFolder, deleteBoxWhenEnd, writeFolder, debug, newMail, skipOldMail = true) {
-        super();
-        this.IMapConnect = IMapConnect;
-        this.listenFolder = listenFolder;
-        this.deleteBoxWhenEnd = deleteBoxWhenEnd;
-        this.writeFolder = writeFolder;
-        this.debug = debug;
-        this.newMail = newMail;
-        this.skipOldMail = skipOldMail;
-        this.imapStream = new ImapServerSwitchStream(this, this.deleteBoxWhenEnd, this.debug);
-        this.newSwitchRet = null;
-        this.newSwitchError = null;
-        this.fetching = null;
-        this.tagcount = 0;
-        this.domainName = this.IMapConnect.imapUserName.split('@')[1];
-        this.serverSupportTag = null;
-        this.idleSupport = null;
-        this.condStoreSupport = null;
-        this.literalPlus = null;
-        this.fetchAddCom = '';
-        this.imapEnd = false;
-        this.imapSerialID = crypto_1.createHash('md5').update(JSON.stringify(this.IMapConnect)).digest('hex').toUpperCase();
-        this.port = typeof this.IMapConnect.imapPortNumber === 'object' ? this.IMapConnect.imapPortNumber[0] : this.IMapConnect.imapPortNumber;
-        this.connectTimeOut = null;
-        this.connect();
-        this.once(`error`, err => {
-            debug ? exports.saveLog(`[${this.imapSerialID}] this.on error ${err && err.message ? err.message : null}`) : null;
-            this.imapEnd = true;
-            return this.destroyAll(err);
-        });
-    }
+    IMapConnect;
+    listenFolder;
+    deleteBoxWhenEnd;
+    writeFolder;
+    debug;
+    newMail;
+    skipOldMail;
+    socket;
+    imapStream = null;
+    newSwitchRet = null;
+    newSwitchError = null;
+    fetching = null;
+    tagcount = 0;
+    domainName = '';
+    serverSupportTag = null;
+    idleSupport = null;
+    condStoreSupport = null;
+    literalPlus = null;
+    fetchAddCom = '';
+    imapEnd = false;
+    imapSerialID = '';
+    port = 0;
     TagCount1() {
         if (++this.tagcount < MAX_INT)
             return this.tagcount;
         return this.tagcount = 0;
     }
+    connectTimeOut = null;
     connect() {
         let conn = null;
         const _connect = () => {
@@ -981,6 +950,26 @@ class qtGateImap extends events_1.EventEmitter {
             return this.connect();
         }
         return conn.once('error', err => {
+            return this.destroyAll(err);
+        });
+    }
+    constructor(IMapConnect, listenFolder, deleteBoxWhenEnd, writeFolder, debug, newMail, skipOldMail = false) {
+        super();
+        this.IMapConnect = IMapConnect;
+        this.listenFolder = listenFolder;
+        this.deleteBoxWhenEnd = deleteBoxWhenEnd;
+        this.writeFolder = writeFolder;
+        this.debug = debug;
+        this.newMail = newMail;
+        this.skipOldMail = skipOldMail;
+        this.domainName = IMapConnect.imapUserName.split('@')[1];
+        this.imapSerialID = crypto_1.createHash('md5').update(JSON.stringify(IMapConnect)).digest('hex').toUpperCase();
+        this.port = typeof this.IMapConnect.imapPortNumber === 'object' ? this.IMapConnect.imapPortNumber[0] : this.IMapConnect.imapPortNumber;
+        this.imapStream = new ImapServerSwitchStream(this, this.deleteBoxWhenEnd, this.debug);
+        this.connect();
+        this.once(`error`, err => {
+            debug ? exports.saveLog(`[${this.imapSerialID}] this.on error ${err && err.message ? err.message : null}`) : null;
+            this.imapEnd = true;
             return this.destroyAll(err);
         });
     }
@@ -1019,9 +1008,9 @@ class qtGateImap extends events_1.EventEmitter {
 }
 exports.qtGateImap = qtGateImap;
 class qtGateImapRead extends qtGateImap {
+    openBox = false;
     constructor(IMapConnect, listenFolder, deleteBoxWhenEnd, newMail, skipOldMail = false) {
         super(IMapConnect, listenFolder, deleteBoxWhenEnd, null, debug, newMail, skipOldMail);
-        this.openBox = false;
         this.once('ready', () => {
             this.openBox = true;
         });
