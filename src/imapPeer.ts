@@ -241,7 +241,7 @@ export class imapPeer extends EventEmitter {
 
 
             if ( typeof this.exit === 'function') {
-                debug ? saveLog (`imapPeer rImap on END!`): null
+                debug ? saveLog (`imapPeer rImap on END! err = ${ err }`): null
 
                 this.exit ( err )
                 return this.exit = null
