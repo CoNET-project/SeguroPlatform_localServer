@@ -175,6 +175,7 @@ const requestPost = ( postData, urlPath: string, CallBack ) => {
 			try {
 				ret = JSON.parse ( _data )
 			} catch ( ex ) {
+				console.log (inspect({ requestPost_JSON_parse_Error: _data }))
 				return CallBack ( ex )
 			}
 			return CallBack ( null, ret )
@@ -404,13 +405,13 @@ waterfall ([
 			return next ( ex )
 		}
 		//console.log ( inspect ( requestData, false, 3, true ))
-		console.time (`start connect to Seguro [${ hash1 }]`)
+		console.time (`Seguro connected [${ hash1 }]`)
 
 		let callbak = false																					//	try connect Seguro use responsed connect_info
 		const ws = wsConnect ( 'ws://localhost:3000/connectToSeguro', respon.connect_info, ( err, data ) => {
 
 			if ( err ) {
-				console.timeEnd (`start connect to Seguro [${ hash1 }]`)
+				console.timeEnd (`Seguro connected [${ hash1 }]`)
 				console.time (`first connecting connected! [${ hash1 }]`)
 				console.log ( inspect (`wsConnect callback err ${ err.message }`, false, 1, true ))
 				if ( !callbak ) {
@@ -421,12 +422,12 @@ waterfall ([
 			
 			if ( /Connected/.test ( data.status )) {
 				callbak = true
-				console.timeEnd (`start connect to Seguro [${ hash1 }]`)
+				console.timeEnd (`Seguro connected [${ hash1 }]`)
 				
 				return setTimeout (() => {											//		close ws connect
 					ws.close ()
 					return next ()
-				}, 1000 * 60 * 30 )
+				}, 1000 * 60 * 60 * 12 )
 			}
 			
 			console.log ( inspect ( data, false, 3, true ))

@@ -162,6 +162,7 @@ const requestPost = (postData, urlPath, CallBack) => {
                 ret = JSON.parse(_data);
             }
             catch (ex) {
+                console.log(util_1.inspect({ requestPost_JSON_parse_Error: _data }));
                 return CallBack(ex);
             }
             return CallBack(null, ret);
@@ -358,11 +359,11 @@ async_1.waterfall([
             return next(ex);
         }
         //console.log ( inspect ( requestData, false, 3, true ))
-        console.time(`start connect to Seguro [${hash1}]`);
+        console.time(`Seguro connected [${hash1}]`);
         let callbak = false; //	try connect Seguro use responsed connect_info
         const ws = wsConnect('ws://localhost:3000/connectToSeguro', respon.connect_info, (err, data) => {
             if (err) {
-                console.timeEnd(`start connect to Seguro [${hash1}]`);
+                console.timeEnd(`Seguro connected [${hash1}]`);
                 console.time(`first connecting connected! [${hash1}]`);
                 console.log(util_1.inspect(`wsConnect callback err ${err.message}`, false, 1, true));
                 if (!callbak) {
@@ -372,11 +373,11 @@ async_1.waterfall([
             }
             if (/Connected/.test(data.status)) {
                 callbak = true;
-                console.timeEnd(`start connect to Seguro [${hash1}]`);
+                console.timeEnd(`Seguro connected [${hash1}]`);
                 return setTimeout(() => {
                     ws.close();
                     return next();
-                }, 1000 * 60 * 30);
+                }, 1000 * 60 * 60 * 12);
             }
             console.log(util_1.inspect(data, false, 3, true));
         });

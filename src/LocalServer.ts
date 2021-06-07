@@ -162,18 +162,21 @@ class LocalServer {
 			console.log ( inspect ( requestObj, false, 3, true ))
 			return getInformationFromSeguro ( requestObj, ( err, data )=> {
 				if ( err ) {
+					console.log ( inspect ({getInformationFromSeguro_ERROR: err }, false, 3, true ))
 					if ( res.writable ) {
 						const _err = err.message
 
 						if ( /Listening/i.test ( _err )) {
-							
+							console.log ( inspect ({ getInformationFromSeguro_ERROR: `res.sendStatus( 408 ).end ()` }, false, 3, true ))
 								return res.sendStatus ( 408 ).end ()
 							}
 							
 						
 						if ( /reach email/i.test ( _err )) {
+							console.log ( inspect ({ getInformationFromSeguro_ERROR: `res.sendStatus( 503 ).end ()` }, false, 3, true ))
 							return res.sendStatus ( 503 ).end ()
 						}
+						console.log ( inspect ({ getInformationFromSeguro_ERROR: `res.sendStatus( 400 ).end ()` }, false, 3, true ))
 						return res.sendStatus ( 400 ).end ()
 					}
 					return
