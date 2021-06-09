@@ -22,14 +22,15 @@ class ArrayBridge {
 		 */
 	}
 
-	private writeProcess () {
+	private async writeProcess () {
 		if ( this.writeProcessing ) {
 			return
 		}
+		this.writeProcessing = true
 		/**
-		 * 		write indexDB
+		 * 		await write indexDB
 		 */
-
+		 this.writeProcessing = false
 	}
 
 	private fireWriteProcess () {
