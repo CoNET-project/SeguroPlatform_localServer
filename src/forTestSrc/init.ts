@@ -1,4 +1,4 @@
-import { readKey, createMessage, enums, encrypt, readMessage, generateKey as GenerateKey, decrypt, decryptKey } from 'openpgp'
+import { readKey, createMessage, enums, encrypt, readMessage, generateKey as GenerateKey, decrypt, decryptKey, readCleartextMessage, verify } from 'openpgp'
 import type { KeyOptions, KeyPair } from 'openpgp'
 import { waterfall } from 'async'
 import { v4 } from 'uuid'
@@ -97,17 +97,16 @@ const generateKey = ( passwd: string, name: string, email: string, CallBack ) =>
 
 
 const encryptMessage = async ( clearText: string, publicKeyArmored: string, privateKeyArmored: string, CallBack ) => {
-	const PrivateKey = await readKey ({ armoredKey: privateKeyArmored })
 	const option = {
-		privateKeys: PrivateKey,
-		publicKeys: await readKey({ armoredKey: publicKeyArmored }),
+		signingKeys: await readKey ({ armoredKey: privateKeyArmored }),
+		encryptionKeys: await readKey({ armoredKey: publicKeyArmored }),
 		message: await createMessage ({ text: clearText }),
 		config: { preferredCompressionAlgorithm: enums.compression.zip }
 	}
 
 	return encrypt ( option ).then ( n => {
 		return CallBack ( null, n )
-	})
+	}).catch ( CallBack )
 }
 
 const encrypBySeguroMessage = async ( data: connectRequest_test, CallBack ) => {
@@ -116,17 +115,7 @@ const encrypBySeguroMessage = async ( data: connectRequest_test, CallBack ) => {
 	delete message.device_private
 
 	return encryptMessage ( JSON.stringify ( message ), seguroKey, data.device_private, CallBack )
-	/*
-	const option = {
-		privateKeys: await readKey ({ armoredKey: data.device_private }),
-		publicKeys: await readKey ({ armoredKey: seguroKey }),
-		message: await createMessage ({ text: }),
-		config: { preferredCompressionAlgorithm: enums.compression.zip }
-	}
-	return encrypt ( option ).then ( n => {
-		return CallBack ( null, n )
-	})
-	*/
+
 }
 
 const decryptMessage = async ( encryptedMessage: string, privateKey: string, publicKey: string, CallBack ) => {
@@ -240,8 +229,8 @@ const requestPostLongConnect = ( postData, urlPath: string, CallBack ) => {
 
 const decryptMessageCheckSeguroKey = async ( encryptedMessage: string, data: connectRequest_test, CallBack ) => {
 	const option = {
-		privateKeys: await readKey ({ armoredKey: data.device_private }),
-		publicKeys: await readKey ({ armoredKey: seguroKey }),
+		decryptionKeys: await readKey ({ armoredKey: data.device_private }),
+		verificationKeys: await readKey ({ armoredKey: seguroKey }),
 		message: await readMessage ({ armoredMessage: encryptedMessage })
 	}
 
@@ -327,6 +316,15 @@ get ('http://localhost:3000/testNetwork', res => {
 /** */
 
 /**
+ * 		
+ * 				
+ */
+
+
+
+
+
+/**
  * 				TEST unit for generateKey
  */
 /*
@@ -340,6 +338,36 @@ generateKey ('', '','',( err, data ) => {
 /** */
 
 /**
+ * 				check sign
+ */
+/*
+const cleartextMessage = `
+-----BEGIN PGP MESSAGE-----
+
+owGbwMvMwCG2Z7JPofGjDR2Ma84l8RQkJmcnpqfqZRXn5yWczLKt5lJQUEpJLUjN
+S0nNS85MLVayUgCJAUUTiyvzkoFcpThjPSM9AyUdiHByYnFxYl5KUaJuSlFmWWoR
+WIWJnpmeEUxFakVBUWpxMVTC0FzPECaTW5pTAtUBNFHPQLcoGaEtH+iIgvQCsKwp
+WBaur7Q0MwUsbqEHdIsSULCWq5aro5SFQYyDQVZMkUXE94HZk7d7spyfPQuG+ZeV
+CeRBBi5OAZjIvL+MDFvtvv2db/4tZPeE6TWahb91Q1oXZHO+neI+K5vj8br2A+mM
+DG/2LOB2E6xzseMSP38rYaacTaJKTt9la6uXZxP5tA8e5QAA
+=f6bz
+-----END PGP MESSAGE-----
+`
+
+const rcheck = async () => {
+	const signedMessage = await readMessage ({
+		armoredMessage: cleartextMessage
+	})
+	const publicKey = await readKey({ armoredKey: seguroKey })
+
+	const verified = await verify ({
+		message: signedMessage,
+		verificationKeys: publicKey
+	})
+	console.log ( inspect ( verified, false, 3, true  ))
+}
+rcheck ()
+/**
  * 				TEST for encrypBySeguroMessage
  */
 /*
@@ -351,7 +379,8 @@ generateKey ('', '','',( err, data ) => {
 	
 	( data, next ) => {
 		requestData = data
-		return encrypBySeguroMessage ( requestData, next )		//			create IMAP request 
+		return encrypBySeguroMessage ( requestData, next )		//			create IMAP request ,
+
 	}], ( err, data ) => {
 		if ( err ) {
 			return console.log ( inspect ({ encrypBySeguroMessage_error: err }, false, 3, true ))
@@ -367,7 +396,7 @@ generateKey ('', '','',( err, data ) => {
  * 			test unit for try connect to Seguro network 
  */
 
-
+/*
 
 let requestData: connectRequest_test = null
 let hash1 = ''
@@ -378,6 +407,7 @@ waterfall ([
 	
 	( data, next ) => {
 		requestData = data
+		
 		return encrypBySeguroMessage ( requestData, next )		//			create IMAP request 
 	},
 	( data, next ) => {
@@ -405,7 +435,7 @@ waterfall ([
 			return next ( ex )
 		}
 		//console.log ( inspect ( requestData, false, 3, true ))
-		console.time (`Seguro connected [${ hash1 }]`)
+		console.time ( `Seguro connected [${ hash1 }]` )
 
 		let callbak = false																					//	try connect Seguro use responsed connect_info
 		const ws = wsConnect ( 'ws://localhost:3000/connectToSeguro', respon.connect_info, ( err, data ) => {
@@ -500,7 +530,7 @@ waterfall ([
 
 /**
  * 
- * 			test unit for local develop test, two devices doing communication, device2 send message to device1
+ * 			test unit for local develop peerToPeerConnecting test, two devices doing communication, device2 send message to device1
  */
 
 /*
@@ -562,7 +592,7 @@ waterfall ([
  * 
  * 			TEST for Access Point hold message and re-send when Device1 re-connect to Seguro network
  */
-/*
+
  let requestData1: connectRequest_test = null
  let requestData2: connectRequest_test = null
  
