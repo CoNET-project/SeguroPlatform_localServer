@@ -176,7 +176,7 @@ class imapPeer extends events_1.EventEmitter {
         });
         this.rImap.on('end', err => {
             debug ? Imap_1.saveLog(`imapPeer rImap on END! but this.exit have not a function `) : null;
-            return this.destroy(null);
+            return this.cleanupImap(null);
         });
     }
     constructor(imapData, listenBox, writeBox, newMail, exit) {
