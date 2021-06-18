@@ -97,9 +97,9 @@ class imapPeer extends events_1.EventEmitter {
         /**
          * 			ignore old mail
          */
-        if (!this.connected) {
-            return;
-        }
+        // if ( ! this.connected ) {
+        // 	return 
+        // }
         return this.newMail(attr, subject);
     }
     replyPing(uuid) {
@@ -176,6 +176,7 @@ class imapPeer extends events_1.EventEmitter {
         });
         this.rImap.on('end', err => {
             debug ? Imap_1.saveLog(`imapPeer rImap on END! but this.exit have not a function `) : null;
+            return this.destroy(null);
         });
     }
     constructor(imapData, listenBox, writeBox, newMail, exit) {
