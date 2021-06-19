@@ -6,7 +6,7 @@ const Imap_1 = require("./Imap");
 const async_1 = require("async");
 const uuid_1 = require("uuid");
 const util_1 = require("util");
-const resetConnectTimeLength = 1000 * 60 * 15;
+const resetConnectTimeLength = 1000 * 60 * 1;
 const pingPongTimeOut = 1000 * 10;
 const debug = true;
 const seneMessageToFolder = (IMapConnect, writeFolder, message, subject, createFolder, CallBack) => {
