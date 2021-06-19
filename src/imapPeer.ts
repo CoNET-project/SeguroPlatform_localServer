@@ -4,7 +4,7 @@ import { waterfall, series, eachSeries } from 'async'
 import { v4 } from 'uuid'
 import { inspect } from 'util'
 
-const resetConnectTimeLength = 1000 * 60 * 15
+const resetConnectTimeLength = 1000 * 60 * 10
 const pingPongTimeOut = 1000 * 10
 const debug = true
 
@@ -59,6 +59,7 @@ export class imapPeer extends EventEmitter {
     public rImap_restart = false
     public checkSocketConnectTime = null
     public serialID = v4()
+	public imapEnd = false
 
     private restart_rImap () {
 
@@ -193,9 +194,10 @@ export class imapPeer extends EventEmitter {
 
     public newReadImap() {
 
-        if ( this.makeRImap || this.rImap && this.rImap.imapStream && this.rImap.imapStream.readable ) {
+        if ( this.imapEnd || this.makeRImap || this.rImap && this.rImap.imapStream && this.rImap.imapStream.readable  ) {
             return debug ? saveLog (`newReadImap have rImap.imapStream.readable = true, stop!`, true ): null
         }
+
         this.rImap_restart = false
         this.makeRImap = true
         console.log ( inspect ({ newReadImap: new Error ('newReadImap')}, false, 3, true ) )
@@ -245,6 +247,7 @@ export class imapPeer extends EventEmitter {
     }
 
     public closePeer ( CallBack ) {
+		this.imapEnd = true
         this.AppendWImap1 ( '', 'Close.', err => {
             if ( typeof this.rImap?.logout === 'function') {
                 return this.rImap.logout ( CallBack )
@@ -265,7 +268,7 @@ export class imapPeer extends EventEmitter {
             this.exit ( err )
             return this.exit = null
         }
-        console.log (inspect ({ restart_rImap: `restart listenIMAP with restart_rImap false!`}, false, 3, true ))
+        console.log ( inspect ({ restart_rImap: `restart listenIMAP with restart_rImap false!`}, false, 3, true ))
         this.newReadImap ()
     }
 
