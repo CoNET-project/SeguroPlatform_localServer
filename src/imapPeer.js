@@ -6,7 +6,7 @@ const Imap_1 = require("./Imap");
 const async_1 = require("async");
 const uuid_1 = require("uuid");
 const util_1 = require("util");
-const resetConnectTimeLength = 1000 * 60 * 1;
+const resetConnectTimeLength = 1000 * 60 * 10;
 const pingPongTimeOut = 1000 * 10;
 const debug = true;
 const seneMessageToFolder = (IMapConnect, writeFolder, message, subject, createFolder, CallBack) => {
@@ -58,6 +58,7 @@ class imapPeer extends events_1.EventEmitter {
     rImap_restart = false;
     checkSocketConnectTime = null;
     serialID = uuid_1.v4();
+    imapEnd = false;
     restart_rImap() {
         console.dir('restart_rImap');
         if (this.rImap_restart) {
@@ -86,10 +87,13 @@ class imapPeer extends events_1.EventEmitter {
             clearTimeout(this.waitingReplyTimeOut);
             return this.emit('CoNETConnected', attr);
         }
+        if (attr.length < 1) {
+            return console.log(util_1.inspect({ "skip old ping": subject }, false, 3, true));
+        }
         if (attr.length < 100) {
             const _attr = attr.split(/\r?\n/)[0];
             if (!this.connected && !this.pinging) {
-                this.Ping(false);
+                //this.Ping ( false )
             }
             console.log(`\n\nthis.replyPing [${_attr}]\n\n this.ping.uuid = [${this.pingUuid}]`);
             return this.replyPing(subject);
@@ -98,21 +102,21 @@ class imapPeer extends events_1.EventEmitter {
          * 			ignore old mail
          */
         // if ( ! this.connected ) {
-        // 	return 
+        //     return
         // }
         return this.newMail(attr, subject);
     }
     replyPing(uuid) {
         console.log(`\n\nreplyPing = [${uuid}]\n\n`);
-        return this.AppendWImap1(uuid, uuid, err => {
+        return this.AppendWithOutCreateFolder(uuid, uuid, err => {
             if (err) {
                 debug ? Imap_1.saveLog(`reply Ping ERROR! [${err.message ? err.message : null}]`) : null;
             }
         });
     }
-    AppendWImap1(mail, uuid, CallBack) {
+    AppendWithOutCreateFolder(mail, uuid, CallBack) {
         const sendData = mail ? Buffer.from(mail).toString('base64') : '';
-        return exports.seneMessageToFolder(this.imapData, this.writeBox, sendData, uuid, true, CallBack);
+        return exports.seneMessageToFolder(this.imapData, this.writeBox, sendData, uuid, false, CallBack);
     }
     setTimeOutOfPing(sendMail) {
         console.trace(`setTimeOutOfPing [${this.pingUuid}]`);
@@ -135,7 +139,7 @@ class imapPeer extends events_1.EventEmitter {
         this.emit('ping');
         this.pingUuid = uuid_1.v4();
         debug ? Imap_1.saveLog(`doing ping test! this.pingUuid = [${this.pingUuid}], sendMail = [${sendMail}]`) : null;
-        return this.AppendWImap1(null, this.pingUuid, err => {
+        return this.AppendWithOutCreateFolder(null, this.pingUuid, err => {
             if (err) {
                 this.pinging = false;
                 this.pingUuid = null;
@@ -147,7 +151,7 @@ class imapPeer extends events_1.EventEmitter {
     }
     rImap = null;
     newReadImap() {
-        if (this.makeRImap || this.rImap && this.rImap.imapStream && this.rImap.imapStream.readable) {
+        if (this.imapEnd || this.makeRImap || this.rImap && this.rImap.imapStream && this.rImap.imapStream.readable) {
             return debug ? Imap_1.saveLog(`newReadImap have rImap.imapStream.readable = true, stop!`, true) : null;
         }
         this.rImap_restart = false;
@@ -175,8 +179,7 @@ class imapPeer extends events_1.EventEmitter {
             }
         });
         this.rImap.on('end', err => {
-            debug ? Imap_1.saveLog(`imapPeer rImap on END! but this.exit have not a function `) : null;
-            return this.cleanupImap(null);
+            console.log(util_1.inspect({ "this.rImap.on ( 'end' )": err }, false, 3, true));
         });
     }
     constructor(imapData, listenBox, writeBox, newMail, exit) {
@@ -192,7 +195,8 @@ class imapPeer extends events_1.EventEmitter {
         this.newReadImap();
     }
     closePeer(CallBack) {
-        this.AppendWImap1('', 'Close.', err => {
+        this.imapEnd = true;
+        this.AppendWithOutCreateFolder('', 'Close.', err => {
             if (typeof this.rImap?.logout === 'function') {
                 return this.rImap.logout(CallBack);
             }

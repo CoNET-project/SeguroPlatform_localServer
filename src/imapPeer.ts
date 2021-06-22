@@ -136,7 +136,7 @@ export class imapPeer extends EventEmitter {
 
     private replyPing ( uuid ) {
         console.log (`\n\nreplyPing = [${ uuid }]\n\n`)
-        return this.AppendWImap1 ( uuid, uuid, err => {
+        return this.AppendWithOutCreateFolder ( uuid, uuid, err => {
             if ( err ) {
                 debug ? saveLog (`reply Ping ERROR! [${ err.message ? err.message : null }]`): null
             }
@@ -144,9 +144,9 @@ export class imapPeer extends EventEmitter {
 
     }
 
-    public AppendWImap1 ( mail: string, uuid: string, CallBack ) {
+    public AppendWithOutCreateFolder ( mail: string, uuid: string, CallBack ) {
         const sendData = mail ? Buffer.from (mail).toString ( 'base64' ) : ''
-        return seneMessageToFolder ( this.imapData, this.writeBox, sendData , uuid, true, CallBack )
+        return seneMessageToFolder ( this.imapData, this.writeBox, sendData , uuid, false, CallBack )
 
     }
 
@@ -178,7 +178,7 @@ export class imapPeer extends EventEmitter {
         this.pingUuid = v4 ()
         debug ? saveLog ( `doing ping test! this.pingUuid = [${ this.pingUuid }], sendMail = [${ sendMail }]`, ): null
 
-        return this.AppendWImap1 ( null, this.pingUuid, err => {
+        return this.AppendWithOutCreateFolder ( null, this.pingUuid, err => {
 
             if ( err ) {
                 this.pinging = false
@@ -248,7 +248,7 @@ export class imapPeer extends EventEmitter {
 
     public closePeer ( CallBack ) {
 		this.imapEnd = true
-        this.AppendWImap1 ( '', 'Close.', err => {
+        this.AppendWithOutCreateFolder ( '', 'Close.', err => {
             if ( typeof this.rImap?.logout === 'function') {
                 return this.rImap.logout ( CallBack )
             }

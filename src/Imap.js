@@ -16,7 +16,7 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.imapGetMediaFile = exports.imapAccountTest = exports.getMailAttachedBase64 = exports.getMailSubject = exports.getMailAttached = exports.qtGateImapRead = exports.qtGateImap = exports.saveLog = void 0;
-/// 
+///
 const tls_1 = require("tls");
 const stream_1 = require("stream");
 const events_1 = require("events");
@@ -25,7 +25,7 @@ const async_1 = require("async");
 const crypto_1 = require("crypto");
 const timers_1 = require("timers");
 const buffer_1 = require("buffer");
-const Util = require("util");
+const util_1 = require("util");
 const MAX_INT = 9007199254740992;
 const debug = true;
 const NoopLoopWaitingTime = 1000 * 1;
@@ -279,7 +279,7 @@ class ImapServerSwitchStream extends stream_1.Transform {
                 });
                 /*
                 return Async.eachSeries ( uids, ( n: string , next ) => {
-                    
+
                     if ( n && n.length ) {
                         return this.flagsDeleted ( n, next )
                     }
@@ -430,6 +430,7 @@ class ImapServerSwitchStream extends stream_1.Transform {
     }
     loginoutWithCheck(CallBack) {
         if (this.needLoginout) {
+            console.log(util_1.inspect({ "loginoutWithCheck this.needLoginout already have ": new Error() }, false, 3, true));
             return CallBack();
         }
         this.needLoginout = CallBack;
@@ -929,7 +930,7 @@ class qtGateImap extends events_1.EventEmitter {
         let conn = null;
         const _connect = () => {
             timers_1.clearTimeout(timeout);
-            console.log(Util.inspect(this.socket, false, 2, true));
+            console.log(util_1.inspect(this.socket, false, 2, true));
             this.socket = conn;
             this.socket.setKeepAlive(true);
             this.socket.pipe(this.imapStream).pipe(this.socket).once('error', err => {
